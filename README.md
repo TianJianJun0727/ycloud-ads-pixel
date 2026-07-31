@@ -46,6 +46,58 @@ adsPixel.track({
 });
 ```
 
+Each platform field supports either one event object or an event array:
+
+```ts
+adsPixel.track({
+  name: 'registration_completed',
+  google: [
+    {
+      eventName: 'conversion',
+      properties: {
+        send_to: 'AW-000000000/example',
+      },
+    },
+    {
+      eventName: 'sign_up',
+      properties: {
+        method: 'email',
+      },
+    },
+  ],
+  meta: [
+    {
+      method: 'track',
+      eventName: 'Lead',
+    },
+    {
+      method: 'trackCustom',
+      eventName: 'RegistrationSource',
+      properties: {
+        source: 'register_success',
+      },
+    },
+  ],
+  openai: [
+    {
+      eventName: 'registration_completed',
+      payload: {
+        type: 'customer_action',
+      },
+    },
+    {
+      eventName: 'custom',
+      payload: {
+        type: 'custom',
+      },
+      options: {
+        custom_event_name: 'registration_source',
+      },
+    },
+  ],
+});
+```
+
 ## Setup
 
 Install the dependencies:

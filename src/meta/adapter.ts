@@ -5,6 +5,7 @@ import {
   isBrowser,
   loadScript,
   mergeProperties,
+  toArray,
 } from '../utils';
 import { META_DEFAULT_SCRIPT_ID, META_DEFAULT_SCRIPT_SRC } from './constants';
 import type { MetaAdapterConfig, MetaPixelQueue } from './types';
@@ -97,19 +98,23 @@ export class MetaAdapter
       return;
     }
 
-    const properties = mergeProperties(
-      this.state.getDefaultProperties(),
-      event.properties,
-      event.meta.properties,
-    );
+    const fbq = browserWindow.fbq;
 
-    if (event.meta.eventId) {
-      browserWindow.fbq(event.meta.method, event.meta.eventName, properties, {
-        eventID: event.meta.eventId,
-      });
-      return;
-    }
+    toArray(event.meta).forEach((metaEvent) => {
+      const properties = mergeProperties(
+        this.state.getDefaultProperties(),
+        event.properties,
+        metaEvent.properties,
+      );
 
-    browserWindow.fbq(event.meta.method, event.meta.eventName, properties);
+      if (metaEvent.eventId) {
+        fbq(metaEvent.method, metaEvent.eventName, properties, {
+          eventID: metaEvent.eventId,
+        });
+        return;
+      }
+
+      fbq(metaEvent.method, metaEvent.eventName, properties);
+    });
   }
 }

@@ -4,6 +4,7 @@ import {
   getBrowserWindow,
   isBrowser,
   loadScript,
+  toArray,
 } from '../utils';
 import {
   OPENAI_DEFAULT_SCRIPT_ID,
@@ -73,16 +74,20 @@ export class OpenAIAdapter
       return;
     }
 
-    if (event.openai.options) {
-      browserWindow.oaiq(
-        'measure',
-        event.openai.eventName,
-        event.openai.payload,
-        event.openai.options,
-      );
-      return;
-    }
+    const oaiq = browserWindow.oaiq;
 
-    browserWindow.oaiq('measure', event.openai.eventName, event.openai.payload);
+    toArray(event.openai).forEach((openAIEvent) => {
+      if (openAIEvent.options) {
+        oaiq(
+          'measure',
+          openAIEvent.eventName,
+          openAIEvent.payload,
+          openAIEvent.options,
+        );
+        return;
+      }
+
+      oaiq('measure', openAIEvent.eventName, openAIEvent.payload);
+    });
   }
 }

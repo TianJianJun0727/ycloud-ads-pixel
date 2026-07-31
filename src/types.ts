@@ -2,6 +2,8 @@ import type { GoogleAdapterConfig, GoogleEventOptions } from './google/types';
 import type { MetaAdapterConfig, MetaEventOptions } from './meta/types';
 import type { OpenAIAdapterConfig, OpenAIEventOptions } from './openai/types';
 
+export type OneOrMany<T> = T | T[];
+
 export type AdUser = Record<string, unknown>;
 
 export type AdAdapterConfig = {
@@ -12,9 +14,9 @@ export type AdAdapterConfig = {
 export type AdsPixelEvent = {
   name: string;
   properties?: Record<string, unknown>;
-  google?: GoogleEventOptions;
-  meta?: MetaEventOptions;
-  openai?: OpenAIEventOptions;
+  google?: OneOrMany<GoogleEventOptions>;
+  meta?: OneOrMany<MetaEventOptions>;
+  openai?: OneOrMany<OpenAIEventOptions>;
 };
 
 export interface AdAdapter<Config extends AdAdapterConfig = AdAdapterConfig> {

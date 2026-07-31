@@ -5,6 +5,7 @@ import {
   isBrowser,
   loadScript,
   mergeProperties,
+  toArray,
 } from '../utils';
 import { GOOGLE_DEFAULT_SCRIPT_ID } from './constants';
 import type { GoogleAdapterConfig } from './types';
@@ -88,12 +89,14 @@ export class GoogleAdapter
     }
 
     const gtag = browserWindow.gtag;
-    const eventProperties = mergeProperties(
-      this.state.getDefaultProperties(),
-      event.properties,
-      event.google.properties,
-    );
+    toArray(event.google).forEach((googleEvent) => {
+      const eventProperties = mergeProperties(
+        this.state.getDefaultProperties(),
+        event.properties,
+        googleEvent.properties,
+      );
 
-    gtag('event', event.google.eventName || event.name, eventProperties);
+      gtag('event', googleEvent.eventName || event.name, eventProperties);
+    });
   }
 }
