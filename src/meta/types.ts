@@ -5,7 +5,10 @@ export type MetaAdapterConfig = AdAdapterConfig & {
   scriptSrc?: string;
   pixelIds?: readonly string[];
   trackPageView?: boolean;
+  advancedMatching?: MetaAdvancedMatching;
 };
+
+export type MetaAdvancedMatching = Record<string, string>;
 
 export type MetaContent = {
   id?: string;
@@ -76,6 +79,7 @@ export interface MetaPixelQueue {
     params?: Record<string, unknown>,
     options?: { eventID?: string },
   ): void;
+  (method: 'consent', command: 'grant' | 'revoke'): void;
   (method: string, eventName: string, params?: Record<string, unknown>): void;
   callMethod?: (...args: unknown[]) => void;
   push?: MetaPixelQueue;

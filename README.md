@@ -1,15 +1,19 @@
-# @ycloud-web/ads-pixel
+# @ycloud/ads-ads-pixel
 
 Unified browser Ads Pixel SDK for Google Tag, Meta Pixel, and OpenAI Ads Pixel.
 
 ## Usage
 
 ```ts
-import { adsPixel, installAdsPixel } from '@ycloud-web/ads-pixel';
+import { adsPixel, installAdsPixel } from '@ycloud/ads-ads-pixel';
 
 installAdsPixel(adsPixel);
 
 adsPixel.init({
+  consent: {
+    advertising: false,
+    analytics: true,
+  },
   google: {
     measurementIds: ['AW-000000000'],
   },
@@ -21,8 +25,15 @@ adsPixel.init({
   },
 });
 
+adsPixel.setConsent({ advertising: true, analytics: true });
+
 adsPixel.identify({
-  email: 'user@example.com',
+  google: {
+    email: 'user@example.com',
+  },
+  openai: {
+    email_sha256: '<normalized-email-sha256>',
+  },
 });
 
 adsPixel.track({
@@ -45,6 +56,10 @@ adsPixel.track({
   },
 });
 ```
+
+Meta Advanced Matching must be supplied during initialization through
+`meta.advancedMatching`. OpenAI identity updates accept only supported
+pre-hashed fields; raw email and external IDs must not be passed to OpenAI.
 
 Each platform field supports either one event object or an event array:
 

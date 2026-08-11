@@ -8,6 +8,7 @@ export {
 } from './constants';
 export type {
   MetaAdapterConfig,
+  MetaAdvancedMatching,
   MetaContent,
   MetaCustomEventOptions,
   MetaEventOptions,

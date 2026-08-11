@@ -27,4 +27,5 @@ export type {
   OpenAIPlanEnrollmentEventName,
   OpenAIPlanEnrollmentPayload,
   OpenAIStandardEventOptions,
+  OpenAIUserData,
 } from './types';

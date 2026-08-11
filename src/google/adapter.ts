@@ -1,4 +1,4 @@
-import type { AdAdapter, AdsPixelEvent, AdUser } from '../types';
+import type { AdAdapter, AdConsent, AdsPixelEvent, AdUser } from '../types';
 import {
   BaseAdAdapter,
   getBrowserWindow,
@@ -16,8 +16,10 @@ export class GoogleAdapter
 {
   private initialized = false;
 
+  private pendingConsent?: AdConsent;
+
   constructor(config?: GoogleAdapterConfig) {
-    super({
+    super('google', {
       scriptId: GOOGLE_DEFAULT_SCRIPT_ID,
       ...config,
     });
@@ -43,28 +45,56 @@ export class GoogleAdapter
       return;
     }
 
+    const shouldLoadScript = !browserWindow.gtag;
+
     browserWindow.dataLayer = browserWindow.dataLayer || [];
     browserWindow.gtag =
       browserWindow.gtag ||
-      function gtag(...args: unknown[]) {
-        browserWindow.dataLayer?.push(args);
+      function gtag() {
+        // eslint-disable-next-line prefer-rest-params -- gtag.js consumes Arguments objects from dataLayer.
+        browserWindow.dataLayer?.push(arguments);
       };
 
-    loadScript({
-      id: this.state.getConfig().scriptId || GOOGLE_DEFAULT_SCRIPT_ID,
-      src:
-        this.state.getConfig().scriptSrc ||
-        `https://www.googletagmanager.com/gtag/js?id=${primaryMeasurementId}`,
-    });
+    if (shouldLoadScript) {
+      loadScript({
+        id: this.state.getConfig().scriptId || GOOGLE_DEFAULT_SCRIPT_ID,
+        src:
+          this.state.getConfig().scriptSrc ||
+          `https://www.googletagmanager.com/gtag/js?id=${primaryMeasurementId}`,
+      });
+    }
 
     const gtag = browserWindow.gtag;
 
-    gtag('js', new Date());
+    if (this.pendingConsent) {
+      const consentParams = this.toGoogleConsent(this.pendingConsent);
+      this.logCall('consent', ['default', consentParams]);
+      gtag('consent', 'default', consentParams);
+    }
+
+    const initializedAt = new Date();
+
+    this.logCall('js', [initializedAt]);
+    gtag('js', initializedAt);
     measurementIds.forEach((measurementId) => {
+      this.logCall('config', [measurementId]);
       gtag('config', measurementId);
     });
 
     this.initialized = true;
+  }
+
+  setConsent(consent: AdConsent) {
+    this.pendingConsent = consent;
+
+    const browserWindow = getBrowserWindow();
+    if (!this.initialized || !browserWindow?.gtag) {
+      return;
+    }
+
+    const consentParams = this.toGoogleConsent(consent);
+    this.logCall('consent', ['update', consentParams]);
+    browserWindow.gtag('consent', 'update', consentParams);
   }
 
   identify(user: AdUser) {
@@ -72,19 +102,27 @@ export class GoogleAdapter
 
     if (
       !this.state.isEnabled() ||
+      !this.initialized ||
       !browserWindow?.gtag ||
-      !Object.keys(user).length
+      !user.google ||
+      !Object.keys(user.google).length
     ) {
       return;
     }
 
-    browserWindow.gtag('set', 'user_data', user);
+    this.logCall('set', ['user_data', user.google]);
+    browserWindow.gtag('set', 'user_data', user.google);
   }
 
   track(event: AdsPixelEvent) {
     const browserWindow = getBrowserWindow();
 
-    if (!this.state.isEnabled() || !browserWindow?.gtag || !event.google) {
+    if (
+      !this.state.isEnabled() ||
+      !this.initialized ||
+      !browserWindow?.gtag ||
+      !event.google
+    ) {
       return;
     }
 
@@ -96,7 +134,24 @@ export class GoogleAdapter
         googleEvent.properties,
       );
 
+      this.logCall('event', [
+        googleEvent.eventName || event.name,
+        eventProperties,
+      ]);
       gtag('event', googleEvent.eventName || event.name, eventProperties);
     });
+  }
+
+  private toGoogleConsent(consent: AdConsent) {
+    const advertisingState = consent.advertising ? 'granted' : 'denied';
+    const analyticsState =
+      (consent.analytics ?? consent.advertising) ? 'granted' : 'denied';
+
+    return {
+      ad_storage: advertisingState,
+      ad_user_data: advertisingState,
+      ad_personalization: advertisingState,
+      analytics_storage: analyticsState,
+    } as const;
   }
 }
