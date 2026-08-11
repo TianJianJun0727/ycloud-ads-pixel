@@ -16,6 +16,10 @@ export class MetaAdapter
 {
   private initialized = false;
 
+  private ownsQueueStub = false;
+
+  private initializationQueued = false;
+
   private pendingConsent?: AdConsent;
 
   constructor(config?: MetaAdapterConfig) {
@@ -44,7 +48,7 @@ export class MetaAdapter
       return;
     }
 
-    const shouldLoadScript = !browserWindow.fbq;
+    const shouldLoadScript = !browserWindow.fbq || this.ownsQueueStub;
 
     if (!browserWindow.fbq) {
       const fbq: MetaPixelQueue = function (...args: unknown[]) {
@@ -61,13 +65,23 @@ export class MetaAdapter
       fbq.queue = [];
       browserWindow.fbq = fbq;
       browserWindow._fbq = fbq;
+      this.ownsQueueStub = true;
     }
+
+    this.initialized = true;
 
     if (shouldLoadScript) {
       loadScript({
         id: this.state.getConfig().scriptId || META_DEFAULT_SCRIPT_ID,
         src: this.state.getConfig().scriptSrc || META_DEFAULT_SCRIPT_SRC,
+        onError: () => {
+          this.initialized = false;
+        },
       });
+    }
+
+    if (this.initializationQueued) {
+      return;
     }
 
     if (this.pendingConsent) {
@@ -93,7 +107,7 @@ export class MetaAdapter
       browserWindow.fbq?.('track', 'PageView');
     }
 
-    this.initialized = true;
+    this.initializationQueued = true;
   }
 
   setConsent(consent: AdConsent) {

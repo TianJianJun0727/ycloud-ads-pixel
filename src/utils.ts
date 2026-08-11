@@ -76,7 +76,15 @@ export const isBrowser = () =>
 export const getBrowserWindow = () =>
   isBrowser() ? (window as AdsPixelBrowserWindow) : undefined;
 
-export const loadScript = ({ id, src }: { id: string; src: string }) => {
+export const loadScript = ({
+  id,
+  src,
+  onError,
+}: {
+  id: string;
+  src: string;
+  onError?: () => void;
+}) => {
   if (!isBrowser()) {
     return;
   }
@@ -95,6 +103,14 @@ export const loadScript = ({ id, src }: { id: string; src: string }) => {
   });
 
   if (existingScript) {
+    existingScript.addEventListener(
+      'error',
+      () => {
+        existingScript.remove();
+        onError?.();
+      },
+      { once: true },
+    );
     return;
   }
 
@@ -110,7 +126,14 @@ export const loadScript = ({ id, src }: { id: string; src: string }) => {
     },
     { once: true },
   );
-  script.addEventListener('error', () => script.remove(), { once: true });
+  script.addEventListener(
+    'error',
+    () => {
+      script.remove();
+      onError?.();
+    },
+    { once: true },
+  );
 
   const firstScript = document.getElementsByTagName('script')[0];
   if (firstScript?.parentNode) {

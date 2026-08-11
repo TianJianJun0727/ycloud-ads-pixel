@@ -18,6 +18,10 @@ export class OpenAIAdapter
 {
   private initialized = false;
 
+  private ownsQueueStub = false;
+
+  private initializationQueued = false;
+
   private pendingConsent?: AdConsent;
 
   constructor(config?: OpenAIAdapterConfig) {
@@ -45,7 +49,7 @@ export class OpenAIAdapter
       return;
     }
 
-    const shouldLoadScript = !browserWindow.oaiq;
+    const shouldLoadScript = !browserWindow.oaiq || this.ownsQueueStub;
 
     if (!browserWindow.oaiq) {
       const queue: OpenAIAdsQueue = function (...args: unknown[]) {
@@ -53,13 +57,23 @@ export class OpenAIAdapter
       };
       queue.q = [];
       browserWindow.oaiq = queue;
+      this.ownsQueueStub = true;
     }
+
+    this.initialized = true;
 
     if (shouldLoadScript) {
       loadScript({
         id: this.state.getConfig().scriptId || OPENAI_DEFAULT_SCRIPT_ID,
         src: this.state.getConfig().scriptSrc || OPENAI_DEFAULT_SCRIPT_SRC,
+        onError: () => {
+          this.initialized = false;
+        },
       });
+    }
+
+    if (this.initializationQueued) {
+      return;
     }
 
     if (this.pendingConsent) {
@@ -74,7 +88,7 @@ export class OpenAIAdapter
     this.logCall('init', [initConfig]);
     browserWindow.oaiq('init', initConfig);
 
-    this.initialized = true;
+    this.initializationQueued = true;
   }
 
   setConsent(consent: AdConsent) {
@@ -136,9 +150,22 @@ export class OpenAIAdapter
 
     toArray(event.openai).forEach((openAIEvent) => {
       const { amount, currency } = openAIEvent.payload;
+      const contents =
+        'contents' in openAIEvent.payload
+          ? openAIEvent.payload.contents
+          : undefined;
+      const hasInvalidContent = contents?.some(
+        (content) =>
+          (content.amount !== undefined &&
+            (!Number.isInteger(content.amount) ||
+              (!content.currency && !currency))) ||
+          (content.quantity !== undefined &&
+            !Number.isInteger(content.quantity)),
+      );
       if (
         (amount !== undefined && (!Number.isInteger(amount) || !currency)) ||
-        (amount === undefined && currency !== undefined)
+        (amount === undefined && currency !== undefined) ||
+        hasInvalidContent
       ) {
         return;
       }

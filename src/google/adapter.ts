@@ -16,6 +16,10 @@ export class GoogleAdapter
 {
   private initialized = false;
 
+  private ownsQueueStub = false;
+
+  private initializationQueued = false;
+
   private pendingConsent?: AdConsent;
 
   constructor(config?: GoogleAdapterConfig) {
@@ -45,15 +49,18 @@ export class GoogleAdapter
       return;
     }
 
-    const shouldLoadScript = !browserWindow.gtag;
+    const shouldLoadScript = !browserWindow.gtag || this.ownsQueueStub;
 
     browserWindow.dataLayer = browserWindow.dataLayer || [];
-    browserWindow.gtag =
-      browserWindow.gtag ||
-      function gtag() {
+    if (!browserWindow.gtag) {
+      browserWindow.gtag = function gtag() {
         // eslint-disable-next-line prefer-rest-params -- gtag.js consumes Arguments objects from dataLayer.
         browserWindow.dataLayer?.push(arguments);
       };
+      this.ownsQueueStub = true;
+    }
+
+    this.initialized = true;
 
     if (shouldLoadScript) {
       loadScript({
@@ -61,7 +68,14 @@ export class GoogleAdapter
         src:
           this.state.getConfig().scriptSrc ||
           `https://www.googletagmanager.com/gtag/js?id=${primaryMeasurementId}`,
+        onError: () => {
+          this.initialized = false;
+        },
       });
+    }
+
+    if (this.initializationQueued) {
+      return;
     }
 
     const gtag = browserWindow.gtag;
@@ -81,7 +95,7 @@ export class GoogleAdapter
       gtag('config', measurementId);
     });
 
-    this.initialized = true;
+    this.initializationQueued = true;
   }
 
   setConsent(consent: AdConsent) {

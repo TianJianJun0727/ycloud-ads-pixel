@@ -417,6 +417,37 @@ test('does not inject a duplicate Google script for another destination', () => 
   ).toHaveLength(1);
 });
 
+test('retries vendor script loading after an error', () => {
+  const originalCreateElement = document.createElement.bind(document);
+  let scriptCreationCount = 0;
+  document.createElement = ((
+    tagName: string,
+    options?: ElementCreationOptions,
+  ) => {
+    if (tagName === 'script') {
+      scriptCreationCount += 1;
+    }
+    return originalCreateElement(tagName, options);
+  }) as typeof document.createElement;
+
+  const sdk = createAdsPixel({
+    google: { measurementIds: ['AW-000000000'] },
+    meta: { pixelIds: ['000000000'] },
+    openai: { pixelId: 'pixel-id' },
+  });
+  try {
+    sdk.init();
+    sdk.init();
+
+    expect(scriptCreationCount).toBe(6);
+    expect(getTestWindow().dataLayer).toHaveLength(2);
+    expect(getTestWindow().fbq?.queue).toHaveLength(2);
+    expect(getTestWindow().oaiq?.q).toHaveLength(1);
+  } finally {
+    document.createElement = originalCreateElement;
+  }
+});
+
 test('does not send invalid OpenAI amount payloads', () => {
   const calls: unknown[][] = [];
   const testWindow = getTestWindow();
@@ -444,4 +475,64 @@ test('does not send invalid OpenAI amount payloads', () => {
   });
 
   expect(calls).toEqual([]);
+});
+
+test('does not send invalid OpenAI content amounts or quantities', () => {
+  const calls: unknown[][] = [];
+  const testWindow = getTestWindow();
+  const queue = ((...args: unknown[]) => calls.push(args)) as OpenAIAdsQueue;
+  queue.q = [];
+  testWindow.oaiq = queue;
+  const sdk = createAdsPixel({
+    google: { enabled: false },
+    meta: { enabled: false },
+    openai: { pixelId: 'pixel-id' },
+  });
+  sdk.init();
+  calls.length = 0;
+
+  sdk.track({
+    name: 'order_created',
+    openai: [
+      {
+        eventName: 'order_created',
+        payload: {
+          type: 'contents',
+          contents: [{ amount: 12.34, currency: 'USD' }],
+        },
+      },
+      {
+        eventName: 'order_created',
+        payload: {
+          type: 'contents',
+          contents: [{ quantity: 1.5 }],
+        },
+      },
+      {
+        eventName: 'order_created',
+        payload: {
+          type: 'contents',
+          contents: [{ amount: 1234 }],
+        },
+      },
+      {
+        eventName: 'order_created',
+        payload: {
+          type: 'contents',
+          contents: [{ amount: 1234, currency: 'USD', quantity: 1 }],
+        },
+      },
+    ],
+  });
+
+  expect(calls).toEqual([
+    [
+      'measure',
+      'order_created',
+      {
+        type: 'contents',
+        contents: [{ amount: 1234, currency: 'USD', quantity: 1 }],
+      },
+    ],
+  ]);
 });
