@@ -6,6 +6,24 @@ export type OpenAIAdapterConfig = AdAdapterConfig & {
   pixelId?: string;
 };
 
+export type OpenAIUserData = {
+  email_sha256?: string;
+  external_id_sha256?: string;
+  country?: string;
+  city?: string;
+  zip_code?: string;
+};
+
+type OpenAIAmountPayload =
+  | {
+      amount?: never;
+      currency?: never;
+    }
+  | {
+      amount: number;
+      currency: string;
+    };
+
 export type OpenAIContent = {
   id?: string;
   name?: string;
@@ -17,32 +35,24 @@ export type OpenAIContent = {
 
 export type OpenAIContentsPayload = {
   type: 'contents';
-  amount?: number;
-  currency?: string;
   contents?: OpenAIContent[];
-};
+} & OpenAIAmountPayload;
 
 export type OpenAICustomerActionPayload = {
   type: 'customer_action';
-  amount?: number;
-  currency?: string;
-};
+} & OpenAIAmountPayload;
 
 export type OpenAIPlanEnrollmentPayload = {
   type: 'plan_enrollment';
   plan_id?: string;
-  amount?: number;
-  currency?: string;
   contents?: OpenAIContent[];
-};
+} & OpenAIAmountPayload;
 
 export type OpenAICustomPayload = {
   type: 'custom';
   plan_id?: string;
-  amount?: number;
-  currency?: string;
   contents?: OpenAIContent[];
-};
+} & OpenAIAmountPayload;
 
 export type OpenAIEventOptionsPayload = {
   event_id?: string;
@@ -98,7 +108,15 @@ export type OpenAIEventOptions =
 
 export interface OpenAIAdsQueue {
   (...args: unknown[]): void;
-  (command: 'init', config: { pixelId: string | undefined }): void;
+  (
+    command: 'init',
+    config: {
+      pixelId?: string;
+      debug?: boolean;
+      user?: OpenAIUserData;
+    },
+  ): void;
+  (command: 'consent', consent: boolean): void;
   (
     command: 'measure',
     eventName: OpenAIStandardEventOptions['eventName'],

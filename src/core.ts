@@ -1,4 +1,10 @@
-import type { AdsPixelConfig, AdsPixelEvent, AdAdapter, AdUser } from './types';
+import type {
+  AdsPixelConfig,
+  AdsPixelEvent,
+  AdAdapter,
+  AdConsent,
+  AdUser,
+} from './types';
 
 export type AdsPixelAdapterMap = {
   google?: AdAdapter;
@@ -11,9 +17,12 @@ export class AdsPixel {
 
   private adapters: AdsPixelAdapterMap;
 
+  private consent?: AdConsent;
+
   constructor(adapters: AdsPixelAdapterMap, config: AdsPixelConfig = {}) {
     this.enabled = config.enabled ?? true;
     this.adapters = adapters;
+    this.consent = config.consent;
   }
 
   init(config: AdsPixelConfig = {}) {
@@ -23,9 +32,29 @@ export class AdsPixel {
       return;
     }
 
+    if (config.consent) {
+      this.consent = config.consent;
+    }
+
+    if (this.consent) {
+      this.setConsent(this.consent);
+    }
+
     this.adapters.google?.init(config.google);
     this.adapters.meta?.init(config.meta);
     this.adapters.openai?.init(config.openai);
+  }
+
+  setConsent(consent: AdConsent) {
+    this.consent = consent;
+
+    if (!this.enabled) {
+      return;
+    }
+
+    this.adapters.google?.setConsent(consent);
+    this.adapters.meta?.setConsent(consent);
+    this.adapters.openai?.setConsent(consent);
   }
 
   identify(user: AdUser) {

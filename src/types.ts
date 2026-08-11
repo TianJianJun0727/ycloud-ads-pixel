@@ -1,13 +1,33 @@
 import type { GoogleAdapterConfig, GoogleEventOptions } from './google/types';
 import type { MetaAdapterConfig, MetaEventOptions } from './meta/types';
-import type { OpenAIAdapterConfig, OpenAIEventOptions } from './openai/types';
+import type {
+  OpenAIAdapterConfig,
+  OpenAIEventOptions,
+  OpenAIUserData,
+} from './openai/types';
 
 export type OneOrMany<T> = T | T[];
 
-export type AdUser = Record<string, unknown>;
+export type AdAdapterDebugCall = {
+  platform: string;
+  command: string;
+  args: unknown[];
+};
+
+export type AdConsent = {
+  advertising: boolean;
+  analytics?: boolean;
+};
+
+export type AdUser = {
+  google?: Record<string, unknown>;
+  openai?: OpenAIUserData;
+};
 
 export type AdAdapterConfig = {
   enabled?: boolean;
+  debug?: boolean;
+  debugLogger?: (call: AdAdapterDebugCall) => void;
   defaultProperties?: Record<string, unknown>;
 };
 
@@ -21,12 +41,14 @@ export type AdsPixelEvent = {
 
 export interface AdAdapter<Config extends AdAdapterConfig = AdAdapterConfig> {
   init(config?: Config): void;
+  setConsent(consent: AdConsent): void;
   identify(user: AdUser): void;
   track(event: AdsPixelEvent): void;
 }
 
 export type AdsPixelConfig = {
   enabled?: boolean;
+  consent?: AdConsent;
   google?: GoogleAdapterConfig;
   meta?: MetaAdapterConfig;
   openai?: OpenAIAdapterConfig;
@@ -34,12 +56,13 @@ export type AdsPixelConfig = {
 
 export type AdsPixelWindow = {
   init(config?: AdsPixelConfig): void;
+  setConsent(consent: AdConsent): void;
   identify(user: AdUser): void;
   track(event: AdsPixelEvent): void;
 };
 
 export type AdsPixelBrowserWindow = Window & {
-  dataLayer?: unknown[][];
+  dataLayer?: unknown[];
   gtag?: import('./google').GoogleTagQueue;
   fbq?: import('./meta').MetaPixelQueue;
   _fbq?: import('./meta').MetaPixelQueue;

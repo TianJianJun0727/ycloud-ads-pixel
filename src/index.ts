@@ -57,6 +57,7 @@ export type {
 
 export type {
   MetaAdapterConfig,
+  MetaAdvancedMatching,
   MetaContent,
   MetaCustomEventOptions,
   MetaEventOptions,
@@ -80,6 +81,7 @@ export type {
   OpenAIPlanEnrollmentPayload,
   OpenAIStandardEventOptions,
   OpenAIAdsQueue,
+  OpenAIUserData,
 } from './openai';
 
 export type { AdsPixelAdapterMap } from './core';
@@ -90,6 +92,8 @@ export type {
   AdsPixelWindow,
   AdAdapter,
   AdAdapterConfig,
+  AdAdapterDebugCall,
+  AdConsent,
   AdUser,
 } from './types';
 
