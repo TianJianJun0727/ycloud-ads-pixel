@@ -2,6 +2,7 @@ import { AdsPixel } from './core';
 import { GoogleAdapter } from './google';
 import { MetaAdapter } from './meta';
 import { OpenAIAdapter } from './openai';
+import { LinkedInAdapter } from './linkedin';
 import type { AdsPixelConfig } from './types';
 
 export { installAdsPixel } from './browser';
@@ -39,6 +40,18 @@ export {
   OPENAI_PLAN_ENROLLMENT_PROPERTIES,
   OPENAI_STANDARD_EVENTS,
 } from './openai';
+
+export {
+  LINKEDIN_DEFAULT_SCRIPT_ID,
+  LINKEDIN_DEFAULT_SCRIPT_SRC,
+} from './linkedin';
+
+export type {
+  LinkedInAdapterConfig,
+  LinkedInEventOptions,
+  LinkedInQueue,
+  LinkedInTrackPayload,
+} from './linkedin';
 
 export type {
   GoogleAdapterConfig,
@@ -103,6 +116,7 @@ export const createAdsPixel = (config: AdsPixelConfig = {}) =>
       google: new GoogleAdapter(config.google),
       meta: new MetaAdapter(config.meta),
       openai: new OpenAIAdapter(config.openai),
+      linkedin: new LinkedInAdapter(config.linkedin),
     },
     config,
   );

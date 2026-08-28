@@ -1,6 +1,6 @@
 # @ycloud/ads-ads-pixel
 
-Unified browser Ads Pixel SDK for Google Tag, Meta Pixel, and OpenAI Ads Pixel.
+Unified browser Ads Pixel SDK for Google Tag, Meta Pixel, OpenAI Ads Pixel, and LinkedIn Insight Tag.
 
 ## Usage
 
@@ -22,6 +22,9 @@ adsPixel.init({
   },
   openai: {
     pixelId: 'openai-pixel-id',
+  },
+  linkedin: {
+    partnerId: 'linkedin-partner-id',
   },
 });
 
@@ -54,8 +57,17 @@ adsPixel.track({
       type: 'customer_action',
     },
   },
+  linkedin: {
+    conversionId: 'linkedin-conversion-id',
+    eventId: 'registration_completed:user-id',
+  },
 });
 ```
+
+LinkedIn creates the official `lintrk` queue and loads the Insight Tag script
+automatically when `partnerId` is configured. Set `linkedin.autoLoad` to
+`false` when the script is loaded by the host application. An existing
+`window.lintrk` is reused and is never replaced.
 
 Meta Advanced Matching must be supplied during initialization through
 `meta.advancedMatching`. OpenAI identity updates accept only supported

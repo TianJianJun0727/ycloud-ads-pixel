@@ -5,6 +5,11 @@ import type {
   OpenAIEventOptions,
   OpenAIUserData,
 } from './openai/types';
+import type {
+  LinkedInAdapterConfig,
+  LinkedInEventOptions,
+  LinkedInQueue,
+} from './linkedin/types';
 
 export type OneOrMany<T> = T | T[];
 
@@ -37,6 +42,7 @@ export type AdsPixelEvent = {
   google?: OneOrMany<GoogleEventOptions>;
   meta?: OneOrMany<MetaEventOptions>;
   openai?: OneOrMany<OpenAIEventOptions>;
+  linkedin?: OneOrMany<LinkedInEventOptions>;
 };
 
 export interface AdAdapter<Config extends AdAdapterConfig = AdAdapterConfig> {
@@ -52,6 +58,7 @@ export type AdsPixelConfig = {
   google?: GoogleAdapterConfig;
   meta?: MetaAdapterConfig;
   openai?: OpenAIAdapterConfig;
+  linkedin?: LinkedInAdapterConfig;
 };
 
 export type AdsPixelWindow = {
@@ -63,9 +70,12 @@ export type AdsPixelWindow = {
 
 export type AdsPixelBrowserWindow = Window & {
   dataLayer?: unknown[];
+  _linkedin_partner_id?: string | number;
+  _linkedin_data_partner_ids?: Array<string | number>;
   gtag?: import('./google').GoogleTagQueue;
   fbq?: import('./meta').MetaPixelQueue;
   _fbq?: import('./meta').MetaPixelQueue;
   oaiq?: import('./openai').OpenAIAdsQueue;
+  lintrk?: LinkedInQueue;
   adsPixel?: AdsPixelWindow;
 };

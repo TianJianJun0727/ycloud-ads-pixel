@@ -10,6 +10,7 @@ export type AdsPixelAdapterMap = {
   google?: AdAdapter;
   meta?: AdAdapter;
   openai?: AdAdapter;
+  linkedin?: AdAdapter;
 };
 
 export class AdsPixel {
@@ -43,6 +44,7 @@ export class AdsPixel {
     this.adapters.google?.init(config.google);
     this.adapters.meta?.init(config.meta);
     this.adapters.openai?.init(config.openai);
+    this.adapters.linkedin?.init(config.linkedin);
   }
 
   setConsent(consent: AdConsent) {
@@ -55,6 +57,7 @@ export class AdsPixel {
     this.adapters.google?.setConsent(consent);
     this.adapters.meta?.setConsent(consent);
     this.adapters.openai?.setConsent(consent);
+    this.adapters.linkedin?.setConsent(consent);
   }
 
   identify(user: AdUser) {
@@ -65,6 +68,7 @@ export class AdsPixel {
     this.adapters.google?.identify(user);
     this.adapters.meta?.identify(user);
     this.adapters.openai?.identify(user);
+    this.adapters.linkedin?.identify(user);
   }
 
   track(event: AdsPixelEvent) {
@@ -75,5 +79,6 @@ export class AdsPixel {
     this.adapters.google?.track(event);
     this.adapters.meta?.track(event);
     this.adapters.openai?.track(event);
+    this.adapters.linkedin?.track(event);
   }
 }

@@ -4,6 +4,7 @@ import type {
   GoogleTagQueue,
   MetaPixelQueue,
   OpenAIAdsQueue,
+  LinkedInQueue,
 } from '../src/index';
 
 type AdsPixelTestWindow = Window & {
@@ -11,6 +12,9 @@ type AdsPixelTestWindow = Window & {
   gtag?: GoogleTagQueue;
   fbq?: MetaPixelQueue;
   oaiq?: OpenAIAdsQueue;
+  lintrk?: LinkedInQueue;
+  _linkedin_partner_id?: string | number;
+  _linkedin_data_partner_ids?: Array<string | number>;
 };
 
 const getTestWindow = () => window as AdsPixelTestWindow;
@@ -22,9 +26,12 @@ afterEach(() => {
   delete testWindow.gtag;
   delete testWindow.fbq;
   delete testWindow.oaiq;
+  delete testWindow.lintrk;
+  delete testWindow._linkedin_partner_id;
+  delete testWindow._linkedin_data_partner_ids;
   document
     .querySelectorAll(
-      'script[src*="googletagmanager.com/gtag/js"], script[src*="connect.facebook.net"], script[src*="bzrcdn.openai.com/sdk/oaiq.min.js"]',
+      'script[src*="googletagmanager.com/gtag/js"], script[src*="connect.facebook.net"], script[src*="bzrcdn.openai.com/sdk/oaiq.min.js"], script[src*="snap.licdn.com/li.lms-analytics/insight.min.js"]',
     )
     .forEach((script) => script.remove());
 });
@@ -43,6 +50,147 @@ test('installs an ads pixel sdk instance on window', () => {
   expect((window as Window & { adsPixel?: typeof adsPixel }).adsPixel).toBe(
     adsPixel,
   );
+});
+
+test('creates a LinkedIn-compatible queue and loads its script automatically', () => {
+  const testWindow = getTestWindow();
+  const originalCreateElement = document.createElement.bind(document);
+  let scriptCreationCount = 0;
+  document.createElement = ((
+    tagName: string,
+    options?: ElementCreationOptions,
+  ) => {
+    if (tagName === 'script') {
+      scriptCreationCount += 1;
+    }
+    return originalCreateElement(tagName, options);
+  }) as typeof document.createElement;
+
+  try {
+    createAdsPixel({
+      google: { enabled: false },
+      meta: { enabled: false },
+      openai: { enabled: false },
+      linkedin: { partnerId: 'partner-id' },
+    }).init();
+
+    expect(testWindow._linkedin_partner_id).toBe('partner-id');
+    expect(testWindow._linkedin_data_partner_ids).toEqual(['partner-id']);
+    expect(testWindow.lintrk?.q).toEqual([]);
+    expect(scriptCreationCount).toBe(1);
+
+    testWindow.lintrk?.('track', { conversion_id: 101 });
+    expect(testWindow.lintrk?.q).toEqual([
+      ['track', { conversion_id: 101 }],
+    ]);
+  } finally {
+    document.createElement = originalCreateElement;
+  }
+});
+
+test('reuses an existing LinkedIn queue without injecting another script', () => {
+  const calls: unknown[][] = [];
+  const testWindow = getTestWindow();
+  testWindow.lintrk = ((...args: unknown[]) => calls.push(args)) as LinkedInQueue;
+
+  createAdsPixel({
+    google: { enabled: false },
+    meta: { enabled: false },
+    openai: { enabled: false },
+    linkedin: { partnerId: 'partner-id' },
+  }).init();
+
+  expect(
+    document.querySelectorAll(
+      'script[src*="snap.licdn.com/li.lms-analytics/insight.min.js"]',
+    ),
+  ).toHaveLength(0);
+  testWindow.lintrk('track', { conversion_id: 202 });
+  expect(calls).toEqual([['track', { conversion_id: 202 }]]);
+});
+
+test('tracks LinkedIn conversion and event IDs and skips missing events', () => {
+  const calls: unknown[][] = [];
+  const testWindow = getTestWindow();
+  testWindow.lintrk = ((...args: unknown[]) => calls.push(args)) as LinkedInQueue;
+
+  const sdk = createAdsPixel({
+    google: { enabled: false },
+    meta: { enabled: false },
+    openai: { enabled: false },
+    linkedin: { partnerId: 'partner-id', autoLoad: false },
+  });
+  sdk.init();
+  sdk.track({
+    name: 'registration_completed',
+    linkedin: [
+      { conversionId: 'conversion-id', eventId: 'event-id' },
+      {},
+    ],
+  });
+
+  expect(calls).toEqual([
+    ['track', { conversion_id: 'conversion-id', event_id: 'event-id' }],
+  ]);
+});
+
+test('does not initialize LinkedIn when disabled or partner ID is missing', () => {
+  const testWindow = getTestWindow();
+
+  createAdsPixel({
+    google: { enabled: false },
+    meta: { enabled: false },
+    openai: { enabled: false },
+    linkedin: { enabled: false, partnerId: 'partner-id' },
+  }).init();
+  expect(testWindow.lintrk).toBeUndefined();
+
+  createAdsPixel({
+    google: { enabled: false },
+    meta: { enabled: false },
+    openai: { enabled: false },
+    linkedin: { autoLoad: false },
+  }).init();
+  expect(testWindow.lintrk).toBeUndefined();
+});
+
+test('does not inject duplicate LinkedIn scripts on repeated initialization', () => {
+  const originalCreateElement = document.createElement.bind(document);
+  const originalHeadAppendChild = document.head.appendChild.bind(document.head);
+  let scriptCreationCount = 0;
+  document.createElement = ((
+    tagName: string,
+    options?: ElementCreationOptions,
+  ) => {
+    if (tagName === 'script') {
+      scriptCreationCount += 1;
+    }
+    return originalCreateElement(tagName, options);
+  }) as typeof document.createElement;
+  document.head.appendChild = (<T extends Node>(node: T) => {
+    if ((node as Element).tagName === 'SCRIPT') {
+      return node;
+    }
+    return originalHeadAppendChild(node);
+  }) as typeof document.head.appendChild;
+
+  const sdk = createAdsPixel({
+    google: { enabled: false },
+    meta: { enabled: false },
+    openai: { enabled: false },
+    linkedin: { partnerId: 'partner-id' },
+  });
+
+  try {
+    sdk.init();
+    sdk.init();
+
+    expect(scriptCreationCount).toBe(1);
+    expect(getTestWindow()._linkedin_data_partner_ids).toEqual(['partner-id']);
+  } finally {
+    document.createElement = originalCreateElement;
+    document.head.appendChild = originalHeadAppendChild;
+  }
 });
 
 test('queues Google commands as arguments objects for gtag.js', () => {
