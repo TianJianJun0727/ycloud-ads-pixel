@@ -1,4 +1,4 @@
-import type { AdAdapter, AdConsent, AdsPixelEvent, AdUser } from '../types';
+import type { AdAdapter, AdsPixelEvent, AdUser } from '../types';
 import {
   BaseAdAdapter,
   getBrowserWindow,
@@ -21,8 +21,6 @@ export class OpenAIAdapter
   private ownsQueueStub = false;
 
   private initializationQueued = false;
-
-  private pendingConsent?: AdConsent;
 
   constructor(config?: OpenAIAdapterConfig) {
     super('openai', {
@@ -76,11 +74,6 @@ export class OpenAIAdapter
       return;
     }
 
-    if (this.pendingConsent) {
-      this.logCall('consent', [this.pendingConsent.advertising]);
-      browserWindow.oaiq('consent', this.pendingConsent.advertising);
-    }
-
     const initConfig = {
       pixelId: this.state.getConfig().pixelId,
       ...(this.state.getConfig().debug ? { debug: true } : {}),
@@ -89,18 +82,6 @@ export class OpenAIAdapter
     browserWindow.oaiq('init', initConfig);
 
     this.initializationQueued = true;
-  }
-
-  setConsent(consent: AdConsent) {
-    this.pendingConsent = consent;
-
-    const browserWindow = getBrowserWindow();
-    if (!this.initialized || !browserWindow?.oaiq) {
-      return;
-    }
-
-    this.logCall('consent', [consent.advertising]);
-    browserWindow.oaiq('consent', consent.advertising);
   }
 
   identify(user: AdUser) {

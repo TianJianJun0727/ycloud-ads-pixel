@@ -10,10 +10,6 @@ import { adsPixel, installAdsPixel } from '@ycloud/ads-ads-pixel';
 installAdsPixel(adsPixel);
 
 adsPixel.init({
-  consent: {
-    advertising: false,
-    analytics: true,
-  },
   google: {
     measurementIds: ['AW-000000000'],
   },
@@ -27,8 +23,6 @@ adsPixel.init({
     partnerId: 'linkedin-partner-id',
   },
 });
-
-adsPixel.setConsent({ advertising: true, analytics: true });
 
 adsPixel.identify({
   google: {
@@ -64,10 +58,24 @@ adsPixel.track({
 });
 ```
 
+Calling `init` initializes configured platforms with collection enabled by default;
+no additional consent call is required. Platforms without the required IDs are
+not initialized. Existing `enabled: false` options still disable SDK activity.
+Business conversions are sent through `track` at their existing trigger points.
+
+The unified `consent` option, `AdConsent` type, and `setConsent` method have been
+removed. Existing consumers of these APIs must remove or migrate those usages
+before upgrading. The SDK does not send vendor consent commands or override
+existing vendor consent choices. Where consent management is required, the host
+application owns it through the vendor APIs or its consent management platform.
+Vendor queue types still describe the native vendor APIs.
+
 LinkedIn creates the official `lintrk` queue and loads the Insight Tag script
 automatically when `partnerId` is configured. Set `linkedin.autoLoad` to
 `false` when the script is loaded by the host application. An existing
 `window.lintrk` is reused and is never replaced.
+Synchronous LinkedIn tracking failures are isolated per event so later events
+and the caller's business flow can continue. Failed calls are not retried.
 
 Meta Advanced Matching must be supplied during initialization through
 `meta.advancedMatching`. OpenAI identity updates accept only supported

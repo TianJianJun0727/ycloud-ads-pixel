@@ -1,4 +1,4 @@
-import type { AdAdapter, AdConsent, AdsPixelEvent, AdUser } from '../types';
+import type { AdAdapter, AdsPixelEvent, AdUser } from '../types';
 import {
   BaseAdAdapter,
   getBrowserWindow,
@@ -19,8 +19,6 @@ export class MetaAdapter
   private ownsQueueStub = false;
 
   private initializationQueued = false;
-
-  private pendingConsent?: AdConsent;
 
   constructor(config?: MetaAdapterConfig) {
     super('meta', {
@@ -84,12 +82,6 @@ export class MetaAdapter
       return;
     }
 
-    if (this.pendingConsent) {
-      const command = this.pendingConsent.advertising ? 'grant' : 'revoke';
-      this.logCall('consent', [command]);
-      browserWindow.fbq?.('consent', command);
-    }
-
     this.state.getConfig().pixelIds?.forEach((pixelId) => {
       const advancedMatching = this.state.getConfig().advancedMatching;
       if (advancedMatching) {
@@ -108,19 +100,6 @@ export class MetaAdapter
     }
 
     this.initializationQueued = true;
-  }
-
-  setConsent(consent: AdConsent) {
-    this.pendingConsent = consent;
-
-    const browserWindow = getBrowserWindow();
-    if (!this.initialized || !browserWindow?.fbq) {
-      return;
-    }
-
-    const command = consent.advertising ? 'grant' : 'revoke';
-    this.logCall('consent', [command]);
-    browserWindow.fbq('consent', command);
   }
 
   identify(user: AdUser) {

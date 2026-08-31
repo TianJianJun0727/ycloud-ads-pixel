@@ -42,6 +42,7 @@ test('creates the default ads pixel sdk instance', () => {
   expect(typeof sdk.init).toBe('function');
   expect(typeof sdk.identify).toBe('function');
   expect(typeof sdk.track).toBe('function');
+  expect('setConsent' in sdk).toBe(false);
 });
 
 test('installs an ads pixel sdk instance on window', () => {
@@ -131,6 +132,48 @@ test('tracks LinkedIn conversion and event IDs and skips missing events', () => 
 
   expect(calls).toEqual([
     ['track', { conversion_id: 'conversion-id', event_id: 'event-id' }],
+  ]);
+});
+
+test('isolates LinkedIn failures and continues later events and business code', () => {
+  const calls: unknown[][] = [];
+  const testWindow = getTestWindow();
+  testWindow.lintrk = ((...args: unknown[]) => {
+    calls.push(args);
+    if (calls.length === 1) {
+      throw new Error('Vendor tracking failed');
+    }
+  }) as LinkedInQueue;
+
+  const sdk = createAdsPixel({
+    google: { enabled: false },
+    meta: { enabled: false },
+    openai: { enabled: false },
+    linkedin: { partnerId: 'partner-id', autoLoad: false },
+  });
+  sdk.init();
+  let businessContinued = false;
+
+  expect(() => {
+    sdk.track({
+      name: 'purchase',
+      linkedin: [
+        { conversionId: '101', eventId: 'failed-event' },
+        { conversionId: '102', eventId: 'next-event' },
+      ],
+    });
+    businessContinued = true;
+  }).not.toThrow();
+  expect(businessContinued).toBe(true);
+
+  sdk.track({
+    name: 'purchase',
+    linkedin: { conversionId: '103', eventId: 'later-event' },
+  });
+  expect(calls).toEqual([
+    ['track', { conversion_id: '101', event_id: 'failed-event' }],
+    ['track', { conversion_id: '102', event_id: 'next-event' }],
+    ['track', { conversion_id: '103', event_id: 'later-event' }],
   ]);
 });
 
@@ -483,39 +526,74 @@ test('does not send events through adapters that were not initialized', () => {
   expect(openAICalls).toEqual([]);
 });
 
-test('applies default consent before platform initialization', () => {
-  const googleCalls: unknown[][] = [];
-  const metaCalls: unknown[][] = [];
-  const openAICalls: unknown[][] = [];
+test('initializes configured platforms and tracks without a consent step', () => {
   const testWindow = getTestWindow();
-  testWindow.gtag = ((...args: unknown[]) =>
-    googleCalls.push(args)) as GoogleTagQueue;
-  testWindow.fbq = ((...args: unknown[]) =>
-    metaCalls.push(args)) as MetaPixelQueue;
-  const openAIQueue = ((...args: unknown[]) =>
-    openAICalls.push(args)) as OpenAIAdsQueue;
-  openAIQueue.q = [];
-  testWindow.oaiq = openAIQueue;
-
-  createAdsPixel({
-    consent: { advertising: false, analytics: true },
-    google: { measurementIds: ['AW-000000000'] },
-    meta: { pixelIds: ['000000000'] },
-    openai: { pixelId: 'pixel-id' },
-  }).init();
-
-  expect(googleCalls[0]).toEqual([
-    'consent',
-    'default',
-    {
-      ad_storage: 'denied',
-      ad_user_data: 'denied',
-      ad_personalization: 'denied',
-      analytics_storage: 'granted',
-    },
+  const sdk = createAdsPixel();
+  const scripts: Node[] = [];
+  const originalAppendChild = document.head.appendChild;
+  document.head.appendChild = <T extends Node>(node: T) => {
+    scripts.push(node);
+    return node;
+  };
+  try {
+    sdk.init({
+      google: { measurementIds: ['AW-000000000'] },
+      meta: { pixelIds: ['000000000'] },
+      openai: { pixelId: 'pixel-id' },
+      linkedin: { partnerId: 'partner-id' },
+    });
+  } finally {
+    document.head.appendChild = originalAppendChild;
+  }
+  expect(scripts.map((node) => (node as HTMLScriptElement).src)).toEqual([
+    'https://www.googletagmanager.com/gtag/js?id=AW-000000000',
+    'https://connect.facebook.net/en_US/fbevents.js',
+    'https://bzrcdn.openai.com/sdk/oaiq.min.js',
+    'https://snap.licdn.com/li.lms-analytics/insight.min.js',
   ]);
-  expect(metaCalls[0]).toEqual(['consent', 'revoke']);
-  expect(openAICalls[0]).toEqual(['consent', false]);
+
+  sdk.track({
+    name: 'registration_completed',
+    google: { eventName: 'conversion' },
+    meta: { method: 'track', eventName: 'Lead' },
+    openai: {
+      eventName: 'registration_completed',
+      payload: { type: 'customer_action' },
+    },
+    linkedin: { conversionId: '101', eventId: 'registration:user-id' },
+  });
+
+  const googleCalls = testWindow.dataLayer?.map((entry) =>
+    Array.from(entry as IArguments),
+  );
+  expect(googleCalls).toEqual([
+    ['js', expect.any(Date)],
+    ['config', 'AW-000000000'],
+    ['event', 'conversion', {}],
+  ]);
+  expect(testWindow.fbq?.queue).toEqual([
+    ['init', '000000000'],
+    ['track', 'PageView'],
+    ['track', 'Lead', {}],
+  ]);
+  expect(testWindow.oaiq?.q).toEqual([
+    ['init', { pixelId: 'pixel-id' }],
+    ['measure', 'registration_completed', { type: 'customer_action' }],
+  ]);
+  expect(testWindow.lintrk?.q).toEqual([
+    ['track', { conversion_id: '101', event_id: 'registration:user-id' }],
+  ]);
+});
+
+test('does not initialize unconfigured platforms', () => {
+  const testWindow = getTestWindow();
+  createAdsPixel().init();
+
+  expect(document.querySelectorAll('script[src]')).toHaveLength(0);
+  expect(testWindow.gtag).toBeUndefined();
+  expect(testWindow.fbq).toBeUndefined();
+  expect(testWindow.oaiq).toBeUndefined();
+  expect(testWindow.lintrk).toBeUndefined();
 });
 
 test('updates OpenAI identity with supported hashed user fields', () => {

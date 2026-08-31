@@ -1,4 +1,4 @@
-import type { AdAdapter, AdConsent, AdsPixelEvent, AdUser } from '../types';
+import type { AdAdapter, AdsPixelEvent, AdUser } from '../types';
 import {
   BaseAdAdapter,
   getBrowserWindow,
@@ -19,8 +19,6 @@ export class GoogleAdapter
   private ownsQueueStub = false;
 
   private initializationQueued = false;
-
-  private pendingConsent?: AdConsent;
 
   constructor(config?: GoogleAdapterConfig) {
     super('google', {
@@ -80,12 +78,6 @@ export class GoogleAdapter
 
     const gtag = browserWindow.gtag;
 
-    if (this.pendingConsent) {
-      const consentParams = this.toGoogleConsent(this.pendingConsent);
-      this.logCall('consent', ['default', consentParams]);
-      gtag('consent', 'default', consentParams);
-    }
-
     const initializedAt = new Date();
 
     this.logCall('js', [initializedAt]);
@@ -96,19 +88,6 @@ export class GoogleAdapter
     });
 
     this.initializationQueued = true;
-  }
-
-  setConsent(consent: AdConsent) {
-    this.pendingConsent = consent;
-
-    const browserWindow = getBrowserWindow();
-    if (!this.initialized || !browserWindow?.gtag) {
-      return;
-    }
-
-    const consentParams = this.toGoogleConsent(consent);
-    this.logCall('consent', ['update', consentParams]);
-    browserWindow.gtag('consent', 'update', consentParams);
   }
 
   identify(user: AdUser) {
@@ -154,18 +133,5 @@ export class GoogleAdapter
       ]);
       gtag('event', googleEvent.eventName || event.name, eventProperties);
     });
-  }
-
-  private toGoogleConsent(consent: AdConsent) {
-    const advertisingState = consent.advertising ? 'granted' : 'denied';
-    const analyticsState =
-      (consent.analytics ?? consent.advertising) ? 'granted' : 'denied';
-
-    return {
-      ad_storage: advertisingState,
-      ad_user_data: advertisingState,
-      ad_personalization: advertisingState,
-      analytics_storage: analyticsState,
-    } as const;
   }
 }

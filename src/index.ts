@@ -106,7 +106,6 @@ export type {
   AdAdapter,
   AdAdapterConfig,
   AdAdapterDebugCall,
-  AdConsent,
   AdUser,
 } from './types';
 

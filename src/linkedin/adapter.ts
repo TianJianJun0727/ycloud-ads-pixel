@@ -1,4 +1,4 @@
-import type { AdAdapter, AdConsent, AdsPixelEvent, AdUser } from '../types';
+import type { AdAdapter, AdsPixelEvent, AdUser } from '../types';
 import {
   BaseAdAdapter,
   getBrowserWindow,
@@ -98,10 +98,6 @@ export class LinkedInAdapter
     });
   }
 
-  setConsent(consent: AdConsent) {
-    void consent;
-  }
-
   identify(user: AdUser) {
     void user;
   }
@@ -140,8 +136,12 @@ export class LinkedInAdapter
         ...(eventId ? { event_id: eventId } : {}),
       };
 
-      this.logCall('track', [payload]);
-      lintrk('track', payload);
+      try {
+        this.logCall('track', [payload]);
+        lintrk('track', payload);
+      } catch {
+        // Best-effort tracking must not interrupt business code or later events.
+      }
     });
   }
 }

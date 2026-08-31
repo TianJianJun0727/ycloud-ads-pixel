@@ -19,11 +19,6 @@ export type AdAdapterDebugCall = {
   args: unknown[];
 };
 
-export type AdConsent = {
-  advertising: boolean;
-  analytics?: boolean;
-};
-
 export type AdUser = {
   google?: Record<string, unknown>;
   openai?: OpenAIUserData;
@@ -47,14 +42,12 @@ export type AdsPixelEvent = {
 
 export interface AdAdapter<Config extends AdAdapterConfig = AdAdapterConfig> {
   init(config?: Config): void;
-  setConsent(consent: AdConsent): void;
   identify(user: AdUser): void;
   track(event: AdsPixelEvent): void;
 }
 
 export type AdsPixelConfig = {
   enabled?: boolean;
-  consent?: AdConsent;
   google?: GoogleAdapterConfig;
   meta?: MetaAdapterConfig;
   openai?: OpenAIAdapterConfig;
@@ -63,7 +56,6 @@ export type AdsPixelConfig = {
 
 export type AdsPixelWindow = {
   init(config?: AdsPixelConfig): void;
-  setConsent(consent: AdConsent): void;
   identify(user: AdUser): void;
   track(event: AdsPixelEvent): void;
 };
