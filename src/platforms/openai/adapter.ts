@@ -113,7 +113,9 @@ export class OpenAIAdapter extends BaseAdAdapter<OpenAIPlatformOptions> implemen
 
   setConsent(consent: AdConsent) {
     const oaiq = getBrowserWindow()?.oaiq;
-    if (oaiq && this.initializedIds.size) this.applyConsent(oaiq, consent);
+    if (oaiq && this.initializedIds.size && (!consent.advertising || this.destinations.length)) {
+      this.applyConsent(oaiq, consent);
+    }
   }
 
   private applyConsent(oaiq: OpenAIAdsQueue, consent: AdConsent) {

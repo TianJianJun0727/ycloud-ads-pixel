@@ -97,7 +97,7 @@ adsPixel.track({
 
 With `autoTrackPageView: true`, the Insight Tag script reports the initial page view and uses the event-specific Insight Tag conversion rule for `track`. With `autoTrackPageView: false`, use a Campaign Manager Image Pixel conversion rule. The SDK sends that event through the image pixel path. [LinkedIn conversion setup](https://www.linkedin.com/help/lms/answer/a423635)
 
-If you configure several Partner IDs, set `trackingDestinationId` on each conversion to select the intended destination and use the Conversion ID associated with it. When you omit the destination and any enabled LinkedIn destination uses Insight Tag, the SDK sends one command through the shared Insight Tag queue. For image-only destinations the SDK sends a request per selected Partner ID. Insight Tag conversions can include a dynamic amount through `properties.value` and `properties.currency`, and a category through `platformOptions.conversionType`. [LinkedIn dynamic conversion values](https://www.linkedin.com/help/lms/answer/a7488563)
+If you configure several Partner IDs, set `trackingDestinationId` on each conversion to select the intended destination and use the Conversion ID associated with it. When you omit the destination, the SDK sends one command through the shared Insight Tag queue if any enabled destination uses it, and one image request per enabled image-only Partner ID. Insight Tag conversions can include a dynamic amount through `properties.value` and `properties.currency`, and a category through `platformOptions.conversionType`. [LinkedIn dynamic conversion values](https://www.linkedin.com/help/lms/answer/a7488563)
 
 ## Update consent
 
@@ -105,7 +105,7 @@ If you configure several Partner IDs, set `trackingDestinationId` on each conver
 adsPixel.setConsent({ advertising: false, analytics: true });
 ```
 
-Pass the existing authorization as `init({ consent, ... })` to apply it before platform initialization and automatic page views. Use `setConsent` to apply changes. A call made before `init` is retained and takes precedence over the initial value. `analytics` follows `advertising` when omitted. Google receives both signals. Meta, OpenAI, and LinkedIn use the advertising signal. For LinkedIn, denying advertising consent defers initial script loading and prevents subsequent SDK conversion requests. If your page also installs an Insight Tag independently, apply consent to that installation separately.
+Pass the existing authorization as `init({ consent, ... })` to apply it before platform initialization and automatic page views. Use `setConsent` to apply changes. A call made before `init` is retained and takes precedence over the initial value. `analytics` follows `advertising` when omitted. Google receives both signals. Meta, OpenAI, and LinkedIn use the advertising signal. If all destinations on an initialized platform are disabled, the SDK forwards consent denials to previously loaded tags and withholds grants until a destination is enabled. For LinkedIn, denying advertising consent defers initial script loading and prevents subsequent SDK conversion requests. Apply consent separately to any Insight Tag installed outside the SDK.
 
 ## Source layout
 

@@ -167,6 +167,41 @@ test('returns a LinkedIn no-script page view only for an eligible destination', 
   expect(() => createAdsPixel().init({ linkedin: { trackingDestinationId: 'invalid' } })).toThrow('numeric Partner ID');
 });
 
+test('broadcasts mixed LinkedIn conversions through Insight Tag and each enabled image-only destination', () => {
+  const imageRequests: URL[] = [];
+  const originalImage = globalThis.Image;
+  globalThis.Image = class {
+    set src(value: string) {
+      imageRequests.push(new URL(value));
+    }
+  } as typeof globalThis.Image;
+
+  try {
+    const sdk = createAdsPixel();
+    sdk.init({
+      linkedin: [
+        { trackingDestinationId: '123' },
+        { trackingDestinationId: '456' },
+        { trackingDestinationId: '789', autoTrackPageView: false },
+        { trackingDestinationId: '910', autoTrackPageView: false },
+        { trackingDestinationId: '911', autoTrackPageView: false, enabled: false },
+      ],
+    });
+    sdk.track({
+      name: 'lead',
+      linkedin: { eventId: 'lead:123', platformOptions: { conversionId: 101 } },
+    });
+
+    expect(browser().lintrk?.q).toEqual([['track', { conversion_id: 101, event_id: 'lead:123' }]]);
+    expect(imageRequests.map(({ searchParams }) => Object.fromEntries(searchParams))).toEqual([
+      { pid: '789', fmt: 'gif', conversionId: '101', eventId: 'lead:123' },
+      { pid: '910', fmt: 'gif', conversionId: '101', eventId: 'lead:123' },
+    ]);
+  } finally {
+    globalThis.Image = originalImage;
+  }
+});
+
 test('adapts dynamic value and currency for an Insight Tag conversion', () => {
   const sdk = createAdsPixel();
   sdk.init({ linkedin: { trackingDestinationId: '123' } });

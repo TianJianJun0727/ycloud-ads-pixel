@@ -256,6 +256,43 @@ test('returns page view image fallback descriptors only for eligible destination
   ]);
 });
 
+test('withholds consent grants while destinations are disabled and still forwards revocations', () => {
+  const sdk = createAdsPixel();
+  sdk.init({
+    google: { trackingDestinationId: 'AW-123' },
+    meta: { trackingDestinationId: '123' },
+    openai: { trackingDestinationId: 'owned' },
+  });
+  const initial = [googleQueue().length, metaQueue().length, openAIQueue().length];
+
+  sdk.init({ globalDefaults: { enabled: false } });
+  sdk.setConsent({ advertising: true });
+  expect([googleQueue().length, metaQueue().length, openAIQueue().length]).toEqual(initial);
+
+  sdk.setConsent({ advertising: true, analytics: false });
+  expect(googleQueue().at(-1)).toEqual(['consent', 'update', { analytics_storage: 'denied' }]);
+  expect([metaQueue().length, openAIQueue().length]).toEqual(initial.slice(1));
+
+  sdk.setConsent({ advertising: false, analytics: true });
+  expect(googleQueue().at(-1)).toEqual([
+    'consent',
+    'update',
+    { ad_storage: 'denied', ad_user_data: 'denied', ad_personalization: 'denied' },
+  ]);
+  expect(metaQueue().at(-1)).toEqual(['consent', 'revoke']);
+  expect(openAIQueue().at(-1)).toEqual(['consent', false]);
+
+  sdk.init({ globalDefaults: { enabled: true } });
+  sdk.setConsent({ advertising: true });
+  expect(metaQueue().at(-1)).toEqual(['consent', 'grant']);
+  expect(openAIQueue().at(-1)).toEqual(['consent', true]);
+  expect(googleQueue().at(-1)).toEqual([
+    'consent',
+    'update',
+    { ad_storage: 'granted', ad_user_data: 'granted', ad_personalization: 'granted', analytics_storage: 'granted' },
+  ]);
+});
+
 test('includes only explicitly scoped, supported fields in identity updates', () => {
   const sdk = createAdsPixel();
   sdk.init({

@@ -93,10 +93,10 @@ export class LinkedInAdapter extends BaseAdAdapter<never> implements AdAdapter<n
           insightDestinations.some(({ debug }) => debug),
         );
         browser.lintrk?.('track', nativePayload);
-        continue;
       }
 
       for (const destination of destinations) {
+        if (destination.autoTrackPageView) continue;
         const src = pixelUrl(destination.id, payload);
         this.logCall('image', [src], destination.debug);
         new Image(1, 1).src = src;

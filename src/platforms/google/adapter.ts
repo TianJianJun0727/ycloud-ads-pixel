@@ -72,8 +72,12 @@ export class GoogleAdapter extends BaseAdAdapter<GooglePlatformOptions> implemen
     if (!this.started || !gtag) return;
 
     const values = this.toGoogleConsent(consent);
-    this.logCall('consent', ['update', values]);
-    gtag('consent', 'update', values);
+    const update = this.destinations.length
+      ? values
+      : Object.fromEntries(Object.entries(values).filter(([, value]) => value === 'denied'));
+    if (!Object.keys(update).length) return;
+    this.logCall('consent', ['update', update]);
+    gtag('consent', 'update', update);
   }
 
   setUserIdentity(user: UserIdentity) {

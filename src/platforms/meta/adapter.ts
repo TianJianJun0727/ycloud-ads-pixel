@@ -64,7 +64,9 @@ export class MetaAdapter extends BaseAdAdapter<MetaPlatformOptions> implements A
 
   setConsent(consent: AdConsent) {
     const fbq = getBrowserWindow()?.fbq;
-    if (fbq && this.initializedIds.size) this.applyConsent(fbq, consent);
+    if (fbq && this.initializedIds.size && (!consent.advertising || this.destinations.length)) {
+      this.applyConsent(fbq, consent);
+    }
   }
 
   private applyConsent(fbq: MetaPixelQueue, consent: AdConsent) {
