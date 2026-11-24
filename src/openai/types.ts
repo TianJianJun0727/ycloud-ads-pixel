@@ -59,10 +59,13 @@ export type OpenAIContentEventName =
   | 'page_viewed';
 
 export type OpenAICustomerActionEventName =
-  'appointment_scheduled' | 'lead_created' | 'registration_completed';
+  | 'appointment_scheduled'
+  | 'lead_created'
+  | 'registration_completed';
 
 export type OpenAIPlanEnrollmentEventName =
-  'subscription_created' | 'trial_started';
+  | 'subscription_created'
+  | 'trial_started';
 
 type OpenAIContentsCommand = {
   eventName: OpenAIContentEventName;
@@ -96,7 +99,8 @@ export type OpenAIStandardEventOptions =
   | OpenAIPlanEnrollmentCommand;
 
 export type OpenAIEventOptions = (
-  OpenAIStandardEventOptions | OpenAICustomCommand
+  | OpenAIStandardEventOptions
+  | OpenAICustomCommand
 ) & {
   pixelId?: string;
 };

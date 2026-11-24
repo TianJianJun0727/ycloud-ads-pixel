@@ -1,0 +1,18 @@
+{
+  "$schema": "https://unpkg.com/release-it/schema/release-it.json",
+  "git": {
+    "commitMessage": "chore(release): v${version}",
+    "tagName": "v${version}"
+  },
+  "hooks": {
+    "before:init": "pnpm run format:check && pnpm run lint && pnpm run test"
+  },
+  "plugins": {
+    "@release-it/conventional-changelog": {
+      "preset": { "name": "conventionalcommits" },
+      "infile": "CHANGELOG.md",
+      "tagOpts": { "skipUnstable": true },
+      "writerOpts": { "generateOn": null }
+    }
+  }
+}

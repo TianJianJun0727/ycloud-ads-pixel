@@ -18,10 +18,7 @@ You are an expert in JavaScript, Rspack, Rsbuild, Rslib, and library development
 
 ## Tools
 
-### ESLint
-
-- Run `pnpm run lint` to lint your code
-
-### Prettier
-
-- Run `pnpm run format` to format your code
+- `pnpm run format` formats the repository with Oxfmt.
+- `pnpm run format:check` checks formatting.
+- `pnpm run lint` checks code with Oxlint.
+- The pre-commit hook formats and checks staged files.

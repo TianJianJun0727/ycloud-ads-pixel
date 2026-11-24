@@ -7,11 +7,11 @@ import type {
 } from './types';
 import { toArray } from './utils';
 
-function resolveDestinations<Options>(
+const resolveDestinations = <Options>(
   input: OneOrMany<TrackingDestination<Options>> | undefined,
   defaults: GlobalDefaults,
   defaultPageView: boolean,
-): ResolvedDestination<Options>[] {
+): ResolvedDestination<Options>[] => {
   if (input === undefined) {
     return [];
   }
@@ -43,7 +43,7 @@ function resolveDestinations<Options>(
       };
     })
     .filter(({ enabled }) => enabled);
-}
+};
 
 export const preparePlatforms = (config: AdsPixelConfig) => {
   const defaults = config.globalDefaults ?? {};

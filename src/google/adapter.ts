@@ -36,10 +36,11 @@ export class GoogleAdapter
 
     browserWindow.dataLayer ??= [];
     if (!browserWindow.gtag) {
-      browserWindow.gtag = function gtag() {
-        // eslint-disable-next-line prefer-rest-params -- gtag.js consumes Arguments objects.
+      const gtagStub = function gtag() {
+        // oxlint-disable-next-line prefer-rest-params -- gtag.js consumes Arguments objects.
         browserWindow.dataLayer?.push(arguments);
       };
+      browserWindow.gtag = gtagStub;
       this.ownsQueueStub = true;
     }
     const gtag = browserWindow.gtag;

@@ -55,7 +55,8 @@ export type MetaCustomEventOptions = {
 };
 
 export type MetaEventOptions =
-  MetaStandardEventOptions | MetaCustomEventOptions;
+  | MetaStandardEventOptions
+  | MetaCustomEventOptions;
 
 export interface MetaPixelQueue {
   (

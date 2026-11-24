@@ -83,4 +83,29 @@ Pass the existing authorization as `init({ consent, ... })` to apply it before p
 
 ## Develop
 
-Run `pnpm install` to install dependencies, `pnpm run build` to build the package, and `pnpm run test` to run tests. Use `pnpm run dev` or `pnpm run test:watch` for watch mode.
+Use Node.js 22.22.2+, 24.15.0+, or 26+ and the pnpm version in `package.json`.
+Run `pnpm install` to install dependencies and register the pre-commit hook. The hook formats staged files with Oxfmt and runs the format and lint checks on those files.
+
+| Command                 | Purpose                                                          |
+| ----------------------- | ---------------------------------------------------------------- |
+| `pnpm run format`       | Format source and documentation                                  |
+| `pnpm run format:check` | Check formatting                                                 |
+| `pnpm run lint`         | Run Oxlint                                                       |
+| `pnpm run test`         | Run the SDK tests                                                |
+| `pnpm run build`        | Build the ESM, CommonJS, UMD, and TypeScript declaration outputs |
+| `pnpm pack`             | Build and create a local npm tarball                             |
+
+Use `pnpm run dev` or `pnpm run test:watch` for watch mode.
+
+## Release
+
+Run these commands from a clean branch with a Git upstream and publish access to the npm registry configured in `package.json`.
+
+| Command                 | npm dist-tag |
+| ----------------------- | ------------ |
+| `pnpm run release:beta` | `beta`       |
+| `pnpm run release`      | `latest`     |
+
+Add `--dry-run --npm.skipChecks` to preview a release without registry credentials. Conventional Commits determine the default version increment. Each release bumps `package.json`, adds an entry to `CHANGELOG.md`, and creates a release commit and Git tag. The npm package includes the build outputs and changelog.
+
+To promote a beta series to its corresponding stable version, pass the exact stable version, for example `pnpm run release 2.0.0`.

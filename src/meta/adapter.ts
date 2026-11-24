@@ -39,7 +39,7 @@ export class MetaAdapter
     }
 
     if (!browserWindow.fbq) {
-      const fbq: MetaPixelQueue = function (...args: unknown[]) {
+      const fbq: MetaPixelQueue = (...args: unknown[]) => {
         if (fbq.callMethod) fbq.callMethod(...args);
         else fbq.queue?.push(args);
       };
