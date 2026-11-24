@@ -1,6 +1,6 @@
 {
   "name": "@ycloud/ads-ads-pixel",
-  "version": "2.0.0-beta.1",
+  "version": "2.0.0",
   "description": "Unified browser Ads Pixel SDK for Google Tag, Meta Pixel, OpenAI Ads Pixel, and LinkedIn Insight Tag.",
   "type": "module",
   "exports": {
