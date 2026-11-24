@@ -1,3 +1,6 @@
+import type { OpenAIPlatformOptions } from '../platforms/openai/types';
+import type { MetaPlatformOptions } from '../platforms/meta/types';
+import type { GooglePlatformOptions } from '../platforms/google/types';
 import { preparePlatforms } from './destinations';
 import type {
   AdAdapter,
@@ -6,9 +9,6 @@ import type {
   AdsPixelEvent,
   AdsPixelInitResult,
   UserIdentity,
-  GooglePlatformOptions,
-  MetaPlatformOptions,
-  OpenAIPlatformOptions,
 } from './types';
 
 export type AdsPixelAdapterMap = {

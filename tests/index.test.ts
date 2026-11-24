@@ -1,6 +1,6 @@
 import { afterEach, expect, test } from '@rstest/core';
 import { adsPixel, createAdsPixel, installAdsPixel } from '../src/index';
-import type { AdsPixelBrowserWindow } from '../src/types';
+import type { AdsPixelBrowserWindow } from '../src/browser/runtime';
 
 const testWindow = () => window as AdsPixelBrowserWindow;
 const googleQueue = () =>

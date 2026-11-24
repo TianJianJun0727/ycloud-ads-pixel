@@ -85,3 +85,5 @@ export interface MetaPixelQueue {
   version?: string;
   queue?: unknown[][];
 }
+
+export type MetaPlatformOptions = { advancedMatching?: Record<string, string> };

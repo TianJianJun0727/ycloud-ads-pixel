@@ -1,4 +1,4 @@
-import type { AdsPixelWindow } from './types';
+import type { AdsPixelWindow } from '../core/types';
 
 export const installAdsPixel = (
   adsPixel: AdsPixelWindow,

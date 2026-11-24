@@ -1,11 +1,6 @@
-import { AdsPixel } from './core';
-import { GoogleAdapter } from './google';
-import { MetaAdapter } from './meta';
-import { OpenAIAdapter } from './openai';
-import type { AdsPixelConfig } from './types';
-
-export { installAdsPixel } from './browser';
-export { AdsPixel } from './core';
+export { adsPixel, createAdsPixel } from './core/create-ads-pixel';
+export { installAdsPixel } from './browser/install';
+export { AdsPixel } from './core/ads-pixel';
 
 export {
   GOOGLE_CONVERSION_EVENT_NAME,
@@ -15,7 +10,7 @@ export {
   GOOGLE_ITEM_PARAMETERS,
   GOOGLE_RECOMMENDED_EVENT_PARAMETERS,
   GOOGLE_RECOMMENDED_EVENTS,
-} from './google';
+} from './platforms/google';
 
 export {
   META_CONTENT_PROPERTIES,
@@ -23,7 +18,7 @@ export {
   META_DEFAULT_SCRIPT_SRC,
   META_STANDARD_EVENTS,
   META_STANDARD_EVENT_PROPERTIES,
-} from './meta';
+} from './platforms/meta';
 
 export {
   OPENAI_CONTENT_EVENTS,
@@ -38,7 +33,7 @@ export {
   OPENAI_PLAN_ENROLLMENT_EVENTS,
   OPENAI_PLAN_ENROLLMENT_PROPERTIES,
   OPENAI_STANDARD_EVENTS,
-} from './openai';
+} from './platforms/openai';
 
 export type {
   GoogleConfigParameters,
@@ -52,7 +47,7 @@ export type {
   GoogleItem,
   GoogleRecommendedEventName,
   GoogleTagQueue,
-} from './google';
+} from './platforms/google';
 
 export type {
   MetaAdvancedMatching,
@@ -63,7 +58,7 @@ export type {
   MetaPixelQueue,
   MetaStandardEventName,
   MetaStandardEventOptions,
-} from './meta';
+} from './platforms/meta';
 
 export type {
   OpenAIContent,
@@ -79,9 +74,9 @@ export type {
   OpenAIStandardEventOptions,
   OpenAIAdsQueue,
   OpenAIUserData,
-} from './openai';
+} from './platforms/openai';
 
-export type { AdsPixelAdapterMap } from './core';
+export type { AdsPixelAdapterMap } from './core/ads-pixel';
 
 export type {
   AdsPixelConfig,
@@ -92,27 +87,20 @@ export type {
   UserIdentity,
   PlatformEvent,
   TrackingPlatform,
-  GoogleEventPlatformOptions,
-  OpenAIEventPlatformOptions,
   GlobalDefaults,
   TrackingDestination,
-  GooglePlatformOptions,
-  MetaPlatformOptions,
-  OpenAIPlatformOptions,
-  OneOrMany,
   AdsPixelInitResult,
   ImageTagFallback,
   ResolvedDestination,
-} from './types';
+} from './core/types';
 
-export const createAdsPixel = (config: AdsPixelConfig = {}) =>
-  new AdsPixel(
-    {
-      google: new GoogleAdapter(),
-      meta: new MetaAdapter(),
-      openai: new OpenAIAdapter(),
-    },
-    config,
-  );
-
-export const adsPixel = createAdsPixel();
+export type {
+  GooglePlatformOptions,
+  GoogleEventPlatformOptions,
+} from './platforms/google/types';
+export type { MetaPlatformOptions } from './platforms/meta/types';
+export type {
+  OpenAIPlatformOptions,
+  OpenAIEventPlatformOptions,
+} from './platforms/openai/types';
+export type { OneOrMany } from './shared/one-or-many';

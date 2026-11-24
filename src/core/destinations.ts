@@ -1,11 +1,10 @@
 import type {
   AdsPixelConfig,
   GlobalDefaults,
-  OneOrMany,
   ResolvedDestination,
   TrackingDestination,
 } from './types';
-import { toArray } from './utils';
+import { toArray, type OneOrMany } from '../shared/one-or-many';
 
 const resolveDestinations = <Options>(
   input: OneOrMany<TrackingDestination<Options>> | undefined,

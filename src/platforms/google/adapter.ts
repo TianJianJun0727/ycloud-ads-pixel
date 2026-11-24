@@ -2,12 +2,14 @@ import type {
   AdAdapter,
   AdConsent,
   AdsPixelEvent,
-  GooglePlatformOptions,
   ResolvedDestination,
   UserIdentity,
-} from '../types';
-import { BaseAdAdapter, getBrowserWindow, loadScript, toArray } from '../utils';
+} from '../../core/types';
+import { getBrowserWindow, loadScript } from '../../browser/runtime';
+import { toArray } from '../../shared/one-or-many';
+import { BaseAdAdapter } from '../base-adapter';
 import { GOOGLE_DEFAULT_SCRIPT_ID } from './constants';
+import type { GooglePlatformOptions } from './types';
 
 export class GoogleAdapter
   extends BaseAdAdapter<GooglePlatformOptions>

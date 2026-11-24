@@ -1,32 +1,13 @@
-import type {
-  AdsPixelBrowserWindow,
-  OneOrMany,
-  ResolvedDestination,
-} from './types';
+import type { AdsPixelWindow } from '../core/types';
 
-export abstract class BaseAdAdapter<Options> {
-  protected destinations: readonly ResolvedDestination<Options>[] = [];
-
-  protected readonly initializedIds = new Set<string>();
-
-  protected ownsQueueStub = false;
-
-  constructor(private readonly platform: string) {}
-
-  protected get activeDestinations() {
-    return this.destinations.filter(({ id }) => this.initializedIds.has(id));
-  }
-
-  protected logCall(
-    command: string,
-    args: unknown[],
-    debug = this.destinations.some((target) => target.debug),
-  ) {
-    if (debug) {
-      console.debug('[adsPixel]', this.platform, command, ...args);
-    }
-  }
-}
+export type AdsPixelBrowserWindow = Window & {
+  dataLayer?: unknown[];
+  gtag?: import('../platforms/google/types').GoogleTagQueue;
+  fbq?: import('../platforms/meta/types').MetaPixelQueue;
+  _fbq?: import('../platforms/meta/types').MetaPixelQueue;
+  oaiq?: import('../platforms/openai/types').OpenAIAdsQueue;
+  adsPixel?: AdsPixelWindow;
+};
 
 export const isBrowser = () =>
   typeof window !== 'undefined' && typeof document !== 'undefined';
@@ -101,6 +82,3 @@ export const loadScript = ({
 
   document.head.appendChild(script);
 };
-
-export const toArray = <T>(value: OneOrMany<T>): readonly T[] =>
-  Array.isArray(value) ? value : [value as T];

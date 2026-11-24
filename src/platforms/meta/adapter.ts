@@ -3,17 +3,18 @@ import type {
   AdConsent,
   AdsPixelEvent,
   ImageTagFallback,
-  MetaPlatformOptions,
   ResolvedDestination,
   UserIdentity,
-} from '../types';
-import { BaseAdAdapter, getBrowserWindow, loadScript, toArray } from '../utils';
+} from '../../core/types';
+import { getBrowserWindow, loadScript } from '../../browser/runtime';
+import { toArray } from '../../shared/one-or-many';
+import { BaseAdAdapter } from '../base-adapter';
 import {
   META_DEFAULT_SCRIPT_ID,
   META_DEFAULT_SCRIPT_SRC,
   META_STANDARD_EVENTS,
 } from './constants';
-import type { MetaPixelQueue } from './types';
+import type { MetaPlatformOptions, MetaPixelQueue } from './types';
 
 const standardEvents = new Set<string>(META_STANDARD_EVENTS);
 const sha256 = /^[a-f\d]{64}$/i;

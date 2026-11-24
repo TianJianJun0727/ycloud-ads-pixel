@@ -125,3 +125,10 @@ export interface GoogleTagQueue {
     consentParams: GoogleConsentParams,
   ): void;
 }
+
+export type GooglePlatformOptions = { groups?: string | readonly string[] };
+
+export type GoogleEventPlatformOptions = {
+  conversionLabel?: string;
+  destinationGroup?: string;
+};

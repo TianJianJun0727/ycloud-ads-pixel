@@ -144,3 +144,7 @@ export interface OpenAIAdsQueue {
   ): void;
   q: unknown[][];
 }
+
+export type OpenAIPlatformOptions = { user?: OpenAIUserData };
+
+export type OpenAIEventPlatformOptions = { optOut?: boolean };

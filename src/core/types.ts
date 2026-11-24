@@ -1,6 +1,13 @@
-import type { OpenAIUserData } from './openai/types';
-
-export type OneOrMany<T> = T | readonly T[];
+import type {
+  GoogleEventPlatformOptions,
+  GooglePlatformOptions,
+} from '../platforms/google/types';
+import type { MetaPlatformOptions } from '../platforms/meta/types';
+import type {
+  OpenAIEventPlatformOptions,
+  OpenAIPlatformOptions,
+} from '../platforms/openai/types';
+import type { OneOrMany } from '../shared/one-or-many';
 
 export type GlobalDefaults = {
   enabled?: boolean;
@@ -13,10 +20,6 @@ export type TrackingDestination<PlatformOptions> = GlobalDefaults & {
   imageTagFallback?: boolean;
   platformOptions?: PlatformOptions;
 };
-
-export type GooglePlatformOptions = { groups?: string | readonly string[] };
-export type MetaPlatformOptions = { advancedMatching?: Record<string, string> };
-export type OpenAIPlatformOptions = { user?: OpenAIUserData };
 
 export type AdConsent = { advertising: boolean; analytics?: boolean };
 
@@ -39,12 +42,6 @@ export type PlatformEvent<Options = never> = {
   properties?: Record<string, unknown>;
   platformOptions?: Options;
 };
-
-export type GoogleEventPlatformOptions = {
-  conversionLabel?: string;
-  destinationGroup?: string;
-};
-export type OpenAIEventPlatformOptions = { optOut?: boolean };
 
 export type AdsPixelEvent = {
   name: string;
@@ -97,13 +94,4 @@ export type AdsPixelWindow = {
   setUserIdentity(user: UserIdentity): void;
   track(event: AdsPixelEvent): void;
   setConsent(consent: AdConsent): void;
-};
-
-export type AdsPixelBrowserWindow = Window & {
-  dataLayer?: unknown[];
-  gtag?: import('./google').GoogleTagQueue;
-  fbq?: import('./meta').MetaPixelQueue;
-  _fbq?: import('./meta').MetaPixelQueue;
-  oaiq?: import('./openai').OpenAIAdsQueue;
-  adsPixel?: AdsPixelWindow;
 };

@@ -3,11 +3,12 @@ import type {
   AdConsent,
   AdsPixelEvent,
   ImageTagFallback,
-  OpenAIPlatformOptions,
   ResolvedDestination,
   UserIdentity,
-} from '../types';
-import { BaseAdAdapter, getBrowserWindow, loadScript, toArray } from '../utils';
+} from '../../core/types';
+import { getBrowserWindow, loadScript } from '../../browser/runtime';
+import { toArray } from '../../shared/one-or-many';
+import { BaseAdAdapter } from '../base-adapter';
 import {
   OPENAI_CONTENT_EVENTS,
   OPENAI_CONTENT_ITEM_PROPERTIES,
@@ -16,7 +17,11 @@ import {
   OPENAI_DEFAULT_SCRIPT_SRC,
   OPENAI_PLAN_ENROLLMENT_EVENTS,
 } from './constants';
-import type { OpenAIAdsQueue, OpenAIUserData } from './types';
+import type {
+  OpenAIPlatformOptions,
+  OpenAIAdsQueue,
+  OpenAIUserData,
+} from './types';
 
 const contentEvents = new Set<string>(OPENAI_CONTENT_EVENTS);
 const customerEvents = new Set<string>(OPENAI_CUSTOMER_ACTION_EVENTS);
