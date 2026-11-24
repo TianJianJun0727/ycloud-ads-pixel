@@ -1,20 +1,11 @@
-import type {
-  AdAdapter,
-  AdConsent,
-  AdsPixelEvent,
-  ResolvedDestination,
-  UserIdentity,
-} from '../../core/types';
+import type { AdAdapter, AdConsent, AdsPixelEvent, ResolvedDestination, UserIdentity } from '../../core/types';
 import { getBrowserWindow, loadScript } from '../../browser/runtime';
 import { toArray } from '../../shared/one-or-many';
 import { BaseAdAdapter } from '../base-adapter';
-import { GOOGLE_DEFAULT_SCRIPT_ID } from './constants';
+import { GOOGLE_CONVERSION_EVENT_NAME, GOOGLE_DEFAULT_SCRIPT_ID } from './constants';
 import type { GooglePlatformOptions } from './types';
 
-export class GoogleAdapter
-  extends BaseAdAdapter<GooglePlatformOptions>
-  implements AdAdapter<GooglePlatformOptions>
-{
+export class GoogleAdapter extends BaseAdAdapter<GooglePlatformOptions> implements AdAdapter<GooglePlatformOptions> {
   private started = false;
 
   private readonly userData = new Map<string, Record<string, string>>();
@@ -23,10 +14,7 @@ export class GoogleAdapter
     super('google');
   }
 
-  init(
-    destinations: readonly ResolvedDestination<GooglePlatformOptions>[],
-    consent?: AdConsent,
-  ) {
+  init(destinations: readonly ResolvedDestination<GooglePlatformOptions>[], consent?: AdConsent) {
     this.destinations = destinations;
     const browserWindow = getBrowserWindow();
     const primary = destinations[0];
@@ -59,16 +47,10 @@ export class GoogleAdapter
       this.started = true;
     }
 
-    if (
-      this.ownsQueueStub &&
-      document.getElementById(GOOGLE_DEFAULT_SCRIPT_ID)?.dataset
-        .adsPixelStatus !== 'loaded'
-    ) {
+    if (this.ownsQueueStub && document.getElementById(GOOGLE_DEFAULT_SCRIPT_ID)?.dataset.adsPixelStatus !== 'loaded') {
       loadScript({
         id: GOOGLE_DEFAULT_SCRIPT_ID,
-        src:
-          'https://www.googletagmanager.com/gtag/js?id=' +
-          encodeURIComponent(primary.id),
+        src: 'https://www.googletagmanager.com/gtag/js?id=' + encodeURIComponent(primary.id),
       });
     }
 
@@ -77,9 +59,7 @@ export class GoogleAdapter
       const groups = destination.platformOptions?.groups;
       const config = {
         send_page_view: destination.autoTrackPageView,
-        ...(groups === undefined
-          ? {}
-          : { groups: typeof groups === 'string' ? groups : [...groups] }),
+        ...(groups === undefined ? {} : { groups: typeof groups === 'string' ? groups : [...groups] }),
       };
       this.logCall('config', [destination.id, config], destination.debug);
       gtag('config', destination.id, config);
@@ -116,20 +96,13 @@ export class GoogleAdapter
 
     for (const item of toArray(event.google)) {
       const options = item.platformOptions;
-      const eventName = item.eventName ?? event.name;
+      const eventName = item.eventName ?? (options?.conversionLabel ? GOOGLE_CONVERSION_EVENT_NAME : event.name);
       for (const destination of this.activeDestinations) {
-        if (
-          item.trackingDestinationId &&
-          item.trackingDestinationId !== destination.id
-        )
-          continue;
-        if (
-          options?.destinationGroup &&
-          options.destinationGroup !== 'default'
-        ) {
+        if (item.trackingDestinationId && item.trackingDestinationId !== destination.id) continue;
+        if (options?.conversionLabel && !destination.id.startsWith('AW-')) continue;
+        if (options?.destinationGroup && options.destinationGroup !== 'default') {
           const groups = destination.platformOptions?.groups;
-          if (!groups || !toArray(groups).includes(options.destinationGroup))
-            continue;
+          if (!groups || !toArray(groups).includes(options.destinationGroup)) continue;
         }
         const destinationName = options?.conversionLabel
           ? destination.id + '/' + options.conversionLabel
@@ -164,8 +137,7 @@ export class GoogleAdapter
       ad_storage: advertising,
       ad_user_data: advertising,
       ad_personalization: advertising,
-      analytics_storage:
-        (consent.analytics ?? consent.advertising) ? 'granted' : 'denied',
+      analytics_storage: (consent.analytics ?? consent.advertising) ? 'granted' : 'denied',
     } as const;
   }
 }

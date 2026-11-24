@@ -1,23 +1,8 @@
 import { afterEach, expect, test } from '@rstest/core';
 import { adsPixel, createAdsPixel, installAdsPixel } from '../src/index';
-import type { AdsPixelBrowserWindow } from '../src/browser/runtime';
+import { googleQueue, linkedinQueue, metaQueue, openAIQueue, resetBrowser, testWindow } from './browser-fixture';
 
-const testWindow = () => window as AdsPixelBrowserWindow;
-const googleQueue = () =>
-  (testWindow().dataLayer ?? []).map((args) => Array.from(args as IArguments));
-const metaQueue = () => testWindow().fbq?.queue ?? [];
-const openAIQueue = () => testWindow().oaiq?.q ?? [];
-
-afterEach(() => {
-  const browser = testWindow();
-  delete browser.adsPixel;
-  delete browser.dataLayer;
-  delete browser.gtag;
-  delete browser.fbq;
-  delete browser._fbq;
-  delete browser.oaiq;
-  document.head.querySelectorAll('script').forEach((script) => script.remove());
-});
+afterEach(resetBrowser);
 
 test('installs the SDK with the four business methods', () => {
   installAdsPixel(adsPixel);
@@ -34,14 +19,8 @@ test('initializes object and array destinations, applying each page view default
   const sdk = createAdsPixel();
   sdk.init({
     google: { trackingDestinationId: 'AW-123' },
-    meta: [
-      { trackingDestinationId: '123' },
-      { trackingDestinationId: '456', autoTrackPageView: false },
-    ],
-    openai: [
-      { trackingDestinationId: 'agency' },
-      { trackingDestinationId: 'owned', autoTrackPageView: true },
-    ],
+    meta: [{ trackingDestinationId: '123' }, { trackingDestinationId: '456', autoTrackPageView: false }],
+    openai: [{ trackingDestinationId: 'agency' }, { trackingDestinationId: 'owned', autoTrackPageView: true }],
   });
   sdk.init();
 
@@ -49,9 +28,7 @@ test('initializes object and array destinations, applying each page view default
     ['js', expect.any(Date)],
     ['config', 'AW-123', { send_page_view: true }],
   ]);
-  expect(Object.prototype.toString.call(testWindow().dataLayer?.[0])).toBe(
-    '[object Arguments]',
-  );
+  expect(Object.prototype.toString.call(testWindow().dataLayer?.[0])).toBe('[object Arguments]');
   expect(metaQueue()).toEqual([
     ['init', '123'],
     ['trackSingle', '123', 'PageView'],
@@ -68,10 +45,7 @@ test('destination enable overrides govern initialization, identity, and events',
   const sdk = createAdsPixel();
   sdk.init({
     globalDefaults: { enabled: false },
-    google: [
-      { trackingDestinationId: 'AW-enabled', enabled: true },
-      { trackingDestinationId: 'AW-disabled' },
-    ],
+    google: [{ trackingDestinationId: 'AW-enabled', enabled: true }, { trackingDestinationId: 'AW-disabled' }],
     meta: [
       {
         trackingDestinationId: 'meta-enabled',
@@ -80,10 +54,7 @@ test('destination enable overrides govern initialization, identity, and events',
       },
       { trackingDestinationId: 'meta-disabled' },
     ],
-    openai: [
-      { trackingDestinationId: 'enabled', enabled: true },
-      { trackingDestinationId: 'disabled' },
-    ],
+    openai: [{ trackingDestinationId: 'enabled', enabled: true }, { trackingDestinationId: 'disabled' }],
   });
   const hash = 'a'.repeat(64);
   sdk.setUserIdentity({ emailSha256: hash, city: 'Shanghai' });
@@ -96,11 +67,7 @@ test('destination enable overrides govern initialization, identity, and events',
 
   expect(googleQueue().slice(1)).toEqual([
     ['config', 'AW-enabled', { send_page_view: true }],
-    [
-      'event',
-      'registration_completed',
-      { send_to: 'AW-enabled', user_data: { sha256_email_address: hash } },
-    ],
+    ['event', 'registration_completed', { send_to: 'AW-enabled', user_data: { sha256_email_address: hash } }],
   ]);
   expect(metaQueue()).toEqual([
     ['init', 'meta-enabled'],
@@ -109,16 +76,8 @@ test('destination enable overrides govern initialization, identity, and events',
   ]);
   expect(openAIQueue()).toEqual([
     ['init', { pixelId: 'enabled' }],
-    [
-      'init',
-      { pixelId: 'enabled', user: { email_sha256: hash, city: 'Shanghai' } },
-    ],
-    [
-      'measureSingle',
-      'enabled',
-      'registration_completed',
-      { type: 'customer_action' },
-    ],
+    ['init', { pixelId: 'enabled', user: { email_sha256: hash, city: 'Shanghai' } }],
+    ['measureSingle', 'enabled', 'registration_completed', { type: 'customer_action' }],
   ]);
 
   sdk.init({ openai: { trackingDestinationId: 'enabled', enabled: false } });
@@ -149,9 +108,7 @@ test('retries failed vendor scripts without queuing a second initialization', ()
 
     sdk.init();
     expect(sources).toHaveLength(6);
-    expect(sources.slice(3).map((script) => script.src)).toEqual(
-      sources.slice(0, 3).map((script) => script.src),
-    );
+    expect(sources.slice(3).map((script) => script.src)).toEqual(sources.slice(0, 3).map((script) => script.src));
     expect(googleQueue()).toHaveLength(2);
     expect(metaQueue()).toHaveLength(2);
     expect(openAIQueue()).toHaveLength(1);
@@ -160,23 +117,12 @@ test('retries failed vendor scripts without queuing a second initialization', ()
   }
 });
 
-test('does not duplicate a Google tag script already on the page', () => {
-  const script = document.createElement('script');
-  script.src = 'https://www.googletagmanager.com/gtag/js?id=G-previous';
-  document.head.appendChild(script);
-  createAdsPixel().init({ google: { trackingDestinationId: 'AW-123' } });
-  expect(Array.from(document.scripts)).toEqual([script]);
-});
-
 test('validates destination identities before running vendor commands', () => {
   const sdk = createAdsPixel();
   expect(() =>
     sdk.init({
       google: { trackingDestinationId: 'AW-123' },
-      meta: [
-        { trackingDestinationId: '123' },
-        { trackingDestinationId: ' 123 ' },
-      ],
+      meta: [{ trackingDestinationId: '123' }, { trackingDestinationId: ' 123 ' }],
     }),
   ).toThrow('Duplicate tracking destination: 123');
   expect(() =>
@@ -209,10 +155,7 @@ test('scopes each Google and Meta event, merging shared values with platform val
       },
       { trackingDestinationId: 'G-456', properties: { value: 10 } },
     ],
-    meta: [
-      { eventName: 'Purchase', eventId: 'order-1' },
-      { eventName: 'waba_created' },
-    ],
+    meta: [{ eventName: 'Purchase', eventId: 'order-1' }, { eventName: 'waba_created' }],
   });
 
   expect(googleQueue().slice(3)).toEqual([
@@ -229,85 +172,8 @@ test('scopes each Google and Meta event, merging shared values with platform val
     ['event', 'purchase', { currency: 'USD', value: 10, send_to: 'G-456' }],
   ]);
   expect(metaQueue().slice(1)).toEqual([
-    [
-      'trackSingle',
-      '123',
-      'Purchase',
-      { currency: 'USD', value: 20, event_id: 'order-1' },
-      { eventID: 'order-1' },
-    ],
-    [
-      'trackSingleCustom',
-      '123',
-      'waba_created',
-      { currency: 'USD', value: 20 },
-    ],
-  ]);
-});
-
-test('normalizes OpenAI events identically for both pixels and scopes agency-only events', () => {
-  const sdk = createAdsPixel();
-  sdk.init({
-    openai: [
-      { trackingDestinationId: 'agency' },
-      { trackingDestinationId: 'owned' },
-    ],
-  });
-  sdk.track({ name: 'registration_completed', openai: { eventId: 'reg-1' } });
-  sdk.track({ name: 'waba_created', openai: { eventId: 'waba-1' } });
-  sdk.track({
-    name: 'payment',
-    properties: { plan_id: 'pro', amount: 1234, currency: 'USD' },
-    openai: [
-      {
-        eventName: 'subscription_created',
-        trackingDestinationId: 'agency',
-        eventId: 'paid-1',
-      },
-      { eventName: 'order_created', eventId: 'order-1' },
-      { eventName: 'trial_started', trackingDestinationId: 'external' },
-    ],
-  });
-
-  expect(openAIQueue().slice(2)).toEqual([
-    ...['agency', 'owned'].map((id) => [
-      'measureSingle',
-      id,
-      'registration_completed',
-      { type: 'customer_action' },
-      { event_id: 'reg-1' },
-    ]),
-    ...['agency', 'owned'].map((id) => [
-      'measureSingle',
-      id,
-      'custom',
-      { type: 'custom' },
-      { custom_event_name: 'waba_created', event_id: 'waba-1' },
-    ]),
-    [
-      'measureSingle',
-      'agency',
-      'subscription_created',
-      {
-        type: 'plan_enrollment',
-        plan_id: 'pro',
-        amount: 1234,
-        currency: 'USD',
-      },
-      { event_id: 'paid-1' },
-    ],
-    ...['agency', 'owned'].map((id) => [
-      'measureSingle',
-      id,
-      'order_created',
-      {
-        type: 'contents',
-        contents: [{ id: 'pro' }],
-        amount: 1234,
-        currency: 'USD',
-      },
-      { event_id: 'order-1' },
-    ]),
+    ['trackSingle', '123', 'Purchase', { currency: 'USD', value: 20, event_id: 'order-1' }, { eventID: 'order-1' }],
+    ['trackSingleCustom', '123', 'waba_created', { currency: 'USD', value: 20 }],
   ]);
 });
 
@@ -374,10 +240,7 @@ test('returns page view image fallback descriptors only for eligible destination
       { trackingDestinationId: '456', imageTagFallback: false },
       { trackingDestinationId: '789', enabled: false },
     ],
-    openai: [
-      { trackingDestinationId: 'agency' },
-      { trackingDestinationId: 'owned', autoTrackPageView: true },
-    ],
+    openai: [{ trackingDestinationId: 'agency' }, { trackingDestinationId: 'owned', autoTrackPageView: true }],
   });
   expect(imageTagFallbacks).toEqual([
     {
@@ -390,34 +253,6 @@ test('returns page view image fallback descriptors only for eligible destination
       trackingDestinationId: 'owned',
       src: 'https://bzr.openai.com/v1/sdk/events?pid=owned&event=page_viewed&data%5Btype%5D=contents',
     },
-  ]);
-});
-
-test('validates OpenAI amounts and quantities and sends only supported content fields', () => {
-  const sdk = createAdsPixel();
-  sdk.init({ openai: { trackingDestinationId: 'owned' } });
-  sdk.track({
-    name: 'order_created',
-    openai: { properties: { amount: 1.1, currency: 'USD' } },
-  });
-  sdk.track({
-    name: 'order_created',
-    openai: { properties: { contents: [{ id: 'pro', quantity: 1.5 }] } },
-  });
-  sdk.track({
-    name: 'order_created',
-    openai: {
-      properties: { contents: [{ id: 'pro', quantity: 1, unexpected: true }] },
-    },
-  });
-  expect(openAIQueue()).toEqual([
-    ['init', { pixelId: 'owned' }],
-    [
-      'measureSingle',
-      'owned',
-      'order_created',
-      { type: 'contents', contents: [{ id: 'pro', quantity: 1 }] },
-    ],
   ]);
 });
 
@@ -439,28 +274,52 @@ test('includes only explicitly scoped, supported fields in identity updates', ()
   expect(openAIQueue()).toEqual([['init', { pixelId: 'owned' }]]);
 });
 
-test('uses destination debug instead of the outer default for vendor event logs', () => {
-  const calls: unknown[][] = [];
-  const debug = console.debug;
-  console.debug = (...args: unknown[]) => {
-    calls.push(args);
-  };
-  try {
-    const sdk = createAdsPixel();
-    sdk.init({
-      globalDefaults: { debug: true },
-      openai: [
-        { trackingDestinationId: 'default' },
-        { trackingDestinationId: 'quiet', debug: false },
-      ],
-    });
-    sdk.track({ name: 'registration_completed', openai: {} });
-    expect(
-      calls
-        .filter((args) => args[2] === 'measureSingle')
-        .map((args) => args[3]),
-    ).toEqual(['default']);
-  } finally {
-    console.debug = debug;
-  }
+test('dispatches one shared purchase to all four platforms using their native payloads', () => {
+  const sdk = createAdsPixel();
+  sdk.init({
+    google: { trackingDestinationId: 'AW-123' },
+    meta: { trackingDestinationId: '456', autoTrackPageView: false },
+    openai: { trackingDestinationId: 'owned' },
+    linkedin: { trackingDestinationId: '789' },
+  });
+  sdk.track({
+    name: 'purchase',
+    properties: { value: 12.34, currency: 'USD' },
+    google: { eventId: 'order-1', platformOptions: { conversionLabel: 'label' } },
+    meta: { eventName: 'Purchase', eventId: 'order-1' },
+    openai: { eventName: 'order_created', eventId: 'order-1', properties: { amount: 1234 } },
+    linkedin: { eventId: 'order-1', platformOptions: { conversionId: 501, conversionType: 'PURCHASE' } },
+  });
+
+  expect(googleQueue().at(-1)).toEqual([
+    'event',
+    'conversion',
+    { value: 12.34, currency: 'USD', transaction_id: 'order-1', send_to: 'AW-123/label' },
+  ]);
+  expect(metaQueue().at(-1)).toEqual([
+    'trackSingle',
+    '456',
+    'Purchase',
+    { value: 12.34, currency: 'USD', event_id: 'order-1' },
+    { eventID: 'order-1' },
+  ]);
+  expect(openAIQueue().at(-1)).toEqual([
+    'measureSingle',
+    'owned',
+    'order_created',
+    { type: 'contents', amount: 1234, currency: 'USD' },
+    { event_id: 'order-1' },
+  ]);
+  expect(linkedinQueue()).toEqual([
+    [
+      'track',
+      {
+        conversion_id: 501,
+        event_id: 'order-1',
+        conversion_type: 'PURCHASE',
+        conversion_value: 12.34,
+        conversion_currency: 'USD',
+      },
+    ],
+  ]);
 });

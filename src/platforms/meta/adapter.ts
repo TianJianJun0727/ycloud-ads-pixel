@@ -9,28 +9,18 @@ import type {
 import { getBrowserWindow, loadScript } from '../../browser/runtime';
 import { toArray } from '../../shared/one-or-many';
 import { BaseAdAdapter } from '../base-adapter';
-import {
-  META_DEFAULT_SCRIPT_ID,
-  META_DEFAULT_SCRIPT_SRC,
-  META_STANDARD_EVENTS,
-} from './constants';
+import { META_DEFAULT_SCRIPT_ID, META_DEFAULT_SCRIPT_SRC, META_STANDARD_EVENTS } from './constants';
 import type { MetaPlatformOptions, MetaPixelQueue } from './types';
 
 const standardEvents = new Set<string>(META_STANDARD_EVENTS);
 const sha256 = /^[a-f\d]{64}$/i;
 
-export class MetaAdapter
-  extends BaseAdAdapter<MetaPlatformOptions>
-  implements AdAdapter<MetaPlatformOptions>
-{
+export class MetaAdapter extends BaseAdAdapter<MetaPlatformOptions> implements AdAdapter<MetaPlatformOptions> {
   constructor() {
     super('meta');
   }
 
-  init(
-    destinations: readonly ResolvedDestination<MetaPlatformOptions>[],
-    consent?: AdConsent,
-  ) {
+  init(destinations: readonly ResolvedDestination<MetaPlatformOptions>[], consent?: AdConsent) {
     this.destinations = destinations;
     const browserWindow = getBrowserWindow();
     if (!browserWindow) return;
@@ -53,11 +43,7 @@ export class MetaAdapter
       this.ownsQueueStub = true;
     }
     if (consent) this.applyConsent(browserWindow.fbq, consent);
-    if (
-      this.ownsQueueStub &&
-      document.getElementById(META_DEFAULT_SCRIPT_ID)?.dataset
-        .adsPixelStatus !== 'loaded'
-    ) {
+    if (this.ownsQueueStub && document.getElementById(META_DEFAULT_SCRIPT_ID)?.dataset.adsPixelStatus !== 'loaded') {
       loadScript({ id: META_DEFAULT_SCRIPT_ID, src: META_DEFAULT_SCRIPT_SRC });
     }
 
@@ -65,18 +51,12 @@ export class MetaAdapter
     for (const destination of destinations) {
       if (this.initializedIds.has(destination.id)) continue;
       const matching = destination.platformOptions?.advancedMatching;
-      const args: [string, Record<string, string>?] = matching
-        ? [destination.id, matching]
-        : [destination.id];
+      const args: [string, Record<string, string>?] = matching ? [destination.id, matching] : [destination.id];
       this.logCall('init', [destination.id], destination.debug);
       fbq('init', ...args);
       this.initializedIds.add(destination.id);
       if (destination.autoTrackPageView) {
-        this.logCall(
-          'trackSingle',
-          [destination.id, 'PageView'],
-          destination.debug,
-        );
+        this.logCall('trackSingle', [destination.id, 'PageView'], destination.debug);
         fbq('trackSingle', destination.id, 'PageView');
       }
     }
@@ -96,12 +76,8 @@ export class MetaAdapter
   setUserIdentity(user: UserIdentity) {
     const fbq = getBrowserWindow()?.fbq;
     const matching = {
-      ...(user.emailSha256 && sha256.test(user.emailSha256)
-        ? { em: user.emailSha256 }
-        : {}),
-      ...(user.externalIdSha256 && sha256.test(user.externalIdSha256)
-        ? { external_id: user.externalIdSha256 }
-        : {}),
+      ...(user.emailSha256 && sha256.test(user.emailSha256) ? { em: user.emailSha256 } : {}),
+      ...(user.externalIdSha256 && sha256.test(user.externalIdSha256) ? { external_id: user.externalIdSha256 } : {}),
     };
     if (!fbq || !Object.keys(matching).length) return;
 
@@ -121,22 +97,27 @@ export class MetaAdapter
 
     for (const item of toArray(event.meta)) {
       const eventName = item.eventName ?? event.name;
-      const method = standardEvents.has(eventName)
-        ? 'trackSingle'
-        : 'trackSingleCustom';
+      const method = standardEvents.has(eventName) ? 'trackSingle' : 'trackSingleCustom';
       const properties = {
         ...(item.eventId ? { event_id: item.eventId } : {}),
         ...event.properties,
         ...item.properties,
       };
-      for (const destination of this.activeDestinations) {
+      if (eventName === 'Purchase') {
+        const { value, currency } = properties;
         if (
-          item.trackingDestinationId &&
-          item.trackingDestinationId !== destination.id
+          typeof value !== 'number' ||
+          !Number.isFinite(value) ||
+          typeof currency !== 'string' ||
+          !/^[A-Z]{3}$/i.test(currency)
         )
           continue;
-        const args: [string, string, typeof properties, { eventID: string }?] =
-          [destination.id, eventName, properties];
+        properties.currency = currency.toUpperCase();
+      }
+
+      for (const destination of this.activeDestinations) {
+        if (item.trackingDestinationId && item.trackingDestinationId !== destination.id) continue;
+        const args: [string, string, typeof properties, { eventID: string }?] = [destination.id, eventName, properties];
         if (item.eventId) args.push({ eventID: item.eventId });
         this.logCall(method, args, destination.debug);
         fbq(method, ...args);
@@ -144,14 +125,9 @@ export class MetaAdapter
     }
   }
 
-  getImageTagFallbacks(
-    destinations: readonly ResolvedDestination<MetaPlatformOptions>[],
-  ): ImageTagFallback[] {
+  getImageTagFallbacks(destinations: readonly ResolvedDestination<MetaPlatformOptions>[]): ImageTagFallback[] {
     return destinations
-      .filter(
-        ({ autoTrackPageView, imageTagFallback }) =>
-          autoTrackPageView && imageTagFallback,
-      )
+      .filter(({ autoTrackPageView, imageTagFallback }) => autoTrackPageView && imageTagFallback)
       .map(({ id }) => {
         const url = new URL('https://www.facebook.com/tr');
         url.search = new URLSearchParams({

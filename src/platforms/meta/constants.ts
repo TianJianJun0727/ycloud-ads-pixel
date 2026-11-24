@@ -1,9 +1,6 @@
-import type { MetaStandardEventName } from './types';
-
 export const META_DEFAULT_SCRIPT_ID = 'meta-ads-pixel-sdk';
 
-export const META_DEFAULT_SCRIPT_SRC =
-  'https://connect.facebook.net/en_US/fbevents.js';
+export const META_DEFAULT_SCRIPT_SRC = 'https://connect.facebook.net/en_US/fbevents.js';
 
 export const META_STANDARD_EVENTS = [
   'AddPaymentInfo',
@@ -24,7 +21,7 @@ export const META_STANDARD_EVENTS = [
   'SubmitApplication',
   'Subscribe',
   'ViewContent',
-] as const satisfies readonly MetaStandardEventName[];
+] as const;
 
 export const META_STANDARD_EVENT_PROPERTIES = [
   'content_category',
@@ -40,8 +37,4 @@ export const META_STANDARD_EVENT_PROPERTIES = [
   'value',
 ] as const;
 
-export const META_CONTENT_PROPERTIES = [
-  'id',
-  'quantity',
-  'item_price',
-] as const;
+export const META_CONTENT_PROPERTIES = ['id', 'quantity', 'item_price'] as const;

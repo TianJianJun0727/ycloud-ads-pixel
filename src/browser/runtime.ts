@@ -6,24 +6,16 @@ export type AdsPixelBrowserWindow = Window & {
   fbq?: import('../platforms/meta/types').MetaPixelQueue;
   _fbq?: import('../platforms/meta/types').MetaPixelQueue;
   oaiq?: import('../platforms/openai/types').OpenAIAdsQueue;
+  _linkedin_data_partner_ids?: (string | number)[];
+  lintrk?: import('../platforms/linkedin/types').LinkedInQueue;
   adsPixel?: AdsPixelWindow;
 };
 
-export const isBrowser = () =>
-  typeof window !== 'undefined' && typeof document !== 'undefined';
+export const isBrowser = () => typeof window !== 'undefined' && typeof document !== 'undefined';
 
-export const getBrowserWindow = () =>
-  isBrowser() ? (window as AdsPixelBrowserWindow) : undefined;
+export const getBrowserWindow = () => (isBrowser() ? (window as AdsPixelBrowserWindow) : undefined);
 
-export const loadScript = ({
-  id,
-  src,
-  onError,
-}: {
-  id: string;
-  src: string;
-  onError?: () => void;
-}) => {
+export const loadScript = ({ id, src, onError }: { id: string; src: string; onError?: () => void }) => {
   if (!isBrowser()) {
     return;
   }
@@ -35,10 +27,7 @@ export const loadScript = ({
     }
 
     const existingSrc = new URL(script.src, document.baseURI);
-    return (
-      existingSrc.origin === normalizedSrc.origin &&
-      existingSrc.pathname === normalizedSrc.pathname
-    );
+    return existingSrc.origin === normalizedSrc.origin && existingSrc.pathname === normalizedSrc.pathname;
   });
 
   if (existingScript) {

@@ -68,6 +68,7 @@ export type {
   OpenAICustomerActionEventName,
   OpenAICustomerActionPayload,
   OpenAIEventOptions,
+  OpenAIEventProperties,
   OpenAIEventOptionsPayload,
   OpenAIPlanEnrollmentEventName,
   OpenAIPlanEnrollmentPayload,
@@ -94,13 +95,20 @@ export type {
   ResolvedDestination,
 } from './core/types';
 
-export type {
-  GooglePlatformOptions,
-  GoogleEventPlatformOptions,
-} from './platforms/google/types';
+export type { GooglePlatformOptions, GoogleEventPlatformOptions } from './platforms/google/types';
 export type { MetaPlatformOptions } from './platforms/meta/types';
-export type {
-  OpenAIPlatformOptions,
-  OpenAIEventPlatformOptions,
-} from './platforms/openai/types';
+export type { OpenAIPlatformOptions, OpenAIEventPlatformOptions } from './platforms/openai/types';
 export type { OneOrMany } from './shared/one-or-many';
+
+export {
+  LINKEDIN_DEFAULT_SCRIPT_ID,
+  LINKEDIN_DEFAULT_SCRIPT_SRC,
+  LINKEDIN_PIXEL_COLLECT_URL,
+} from './platforms/linkedin';
+
+export type {
+  LinkedInEventPlatformOptions,
+  LinkedInPlatformEvent,
+  LinkedInQueue,
+  LinkedInTrackPayload,
+} from './platforms/linkedin';

@@ -2,19 +2,9 @@ export const GOOGLE_DEFAULT_SCRIPT_ID = 'google-ads-pixel-sdk';
 
 export const GOOGLE_CONVERSION_EVENT_NAME = 'conversion' as const;
 
-export const GOOGLE_CONTROL_PARAMETERS = [
-  'groups',
-  'send_to',
-  'event_callback',
-  'event_timeout',
-] as const;
+export const GOOGLE_CONTROL_PARAMETERS = ['groups', 'send_to', 'event_callback', 'event_timeout'] as const;
 
-export const GOOGLE_CONVERSION_PROPERTIES = [
-  'send_to',
-  'value',
-  'currency',
-  'transaction_id',
-] as const;
+export const GOOGLE_CONVERSION_PROPERTIES = ['send_to', 'value', 'currency', 'transaction_id', 'new_customer'] as const;
 
 export const GOOGLE_RECOMMENDED_EVENTS = [
   'add_payment_info',
@@ -22,6 +12,9 @@ export const GOOGLE_RECOMMENDED_EVENTS = [
   'add_to_cart',
   'add_to_wishlist',
   'begin_checkout',
+  'close_convert_lead',
+  'close_unconvert_lead',
+  'disqualify_lead',
   'earn_virtual_currency',
   'exception',
   'generate_lead',
@@ -33,8 +26,10 @@ export const GOOGLE_RECOMMENDED_EVENTS = [
   'page_view',
   'post_score',
   'purchase',
+  'qualify_lead',
   'refund',
   'remove_from_cart',
+  'screen_view',
   'search',
   'select_content',
   'select_item',
@@ -50,6 +45,7 @@ export const GOOGLE_RECOMMENDED_EVENTS = [
   'view_item_list',
   'view_promotion',
   'view_search_results',
+  'working_lead',
 ] as const;
 
 export const GOOGLE_ITEM_PARAMETERS = [
@@ -60,6 +56,7 @@ export const GOOGLE_ITEM_PARAMETERS = [
   'creative_name',
   'creative_slot',
   'discount',
+  'google_business_vertical',
   'index',
   'item_brand',
   'item_category',
@@ -79,32 +76,48 @@ export const GOOGLE_ITEM_PARAMETERS = [
 
 export const GOOGLE_RECOMMENDED_EVENT_PARAMETERS = [
   'achievement_id',
+  'app_name',
   'affiliation',
+  'character',
   'checkout_option',
   'checkout_step',
   'content_group',
   'content_id',
   'content_type',
   'coupon',
+  'creative_name',
+  'creative_slot',
   'currency',
+  'customer_type',
   'description',
+  'disqualified_lead_reason',
   'fatal',
   'group_id',
   'items',
+  'item_id',
   'item_list_id',
   'item_list_name',
+  'lead_source',
+  'lead_status',
   'level',
+  'level_name',
   'method',
   'number',
+  'page_location',
+  'page_title',
   'payment_type',
+  'promotion_id',
+  'promotion_name',
   'promotions',
   'score',
   'screen_name',
   'search_term',
   'shipping',
   'shipping_tier',
+  'success',
   'tax',
   'transaction_id',
+  'unconvert_lead_reason',
   'value',
   'virtual_currency_name',
 ] as const;

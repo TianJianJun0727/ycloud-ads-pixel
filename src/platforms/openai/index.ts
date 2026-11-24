@@ -22,6 +22,7 @@ export type {
   OpenAICustomerActionEventName,
   OpenAICustomerActionPayload,
   OpenAIEventOptions,
+  OpenAIEventProperties,
   OpenAIEventOptionsPayload,
   OpenAIPlanEnrollmentEventName,
   OpenAIPlanEnrollmentPayload,

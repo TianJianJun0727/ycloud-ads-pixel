@@ -1,15 +1,21 @@
+import type { OPENAI_CONTENT_EVENTS, OPENAI_CUSTOMER_ACTION_EVENTS, OPENAI_PLAN_ENROLLMENT_EVENTS } from './constants';
+
 export type OpenAIUserData = {
   email_sha256?: string;
+  phone_number_sha256?: string;
   external_id_sha256?: string;
+  first_name_sha256?: string;
+  last_name_sha256?: string;
   country?: string;
   city?: string;
-  zip_code?: string;
+  region?: string;
+  postal_code?: string;
 };
 
 type OpenAIAmountPayload =
   | {
       amount?: never;
-      currency?: never;
+      currency?: string;
     }
   | {
       amount: number;
@@ -46,26 +52,23 @@ export type OpenAICustomPayload = {
   contents?: OpenAIContent[];
 } & OpenAIAmountPayload;
 
+export type OpenAIEventProperties = Record<string, unknown> & {
+  amount?: number;
+  currency?: string;
+  contents?: readonly OpenAIContent[];
+  plan_id?: string;
+};
+
 export type OpenAIEventOptionsPayload = {
   event_id?: string;
   opt_out?: boolean;
 };
 
-export type OpenAIContentEventName =
-  | 'checkout_started'
-  | 'contents_viewed'
-  | 'items_added'
-  | 'order_created'
-  | 'page_viewed';
+export type OpenAIContentEventName = (typeof OPENAI_CONTENT_EVENTS)[number];
 
-export type OpenAICustomerActionEventName =
-  | 'appointment_scheduled'
-  | 'lead_created'
-  | 'registration_completed';
+export type OpenAICustomerActionEventName = (typeof OPENAI_CUSTOMER_ACTION_EVENTS)[number];
 
-export type OpenAIPlanEnrollmentEventName =
-  | 'subscription_created'
-  | 'trial_started';
+export type OpenAIPlanEnrollmentEventName = (typeof OPENAI_PLAN_ENROLLMENT_EVENTS)[number];
 
 type OpenAIContentsCommand = {
   eventName: OpenAIContentEventName;
@@ -98,10 +101,7 @@ export type OpenAIStandardEventOptions =
   | OpenAICustomerActionCommand
   | OpenAIPlanEnrollmentCommand;
 
-export type OpenAIEventOptions = (
-  | OpenAIStandardEventOptions
-  | OpenAICustomCommand
-) & {
+export type OpenAIEventOptions = (OpenAIStandardEventOptions | OpenAICustomCommand) & {
   pixelId?: string;
 };
 

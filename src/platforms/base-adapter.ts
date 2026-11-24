@@ -13,11 +13,7 @@ export abstract class BaseAdAdapter<Options> {
     return this.destinations.filter(({ id }) => this.initializedIds.has(id));
   }
 
-  protected logCall(
-    command: string,
-    args: unknown[],
-    debug = this.destinations.some((target) => target.debug),
-  ) {
+  protected logCall(command: string, args: unknown[], debug = this.destinations.some((target) => target.debug)) {
     if (debug) {
       console.debug('[adsPixel]', this.platform, command, ...args);
     }

@@ -1,9 +1,4 @@
-import type {
-  AdsPixelConfig,
-  GlobalDefaults,
-  ResolvedDestination,
-  TrackingDestination,
-} from './types';
+import type { AdsPixelConfig, GlobalDefaults, ResolvedDestination, TrackingDestination } from './types';
 import { toArray, type OneOrMany } from '../shared/one-or-many';
 
 const resolveDestinations = <Options>(
@@ -18,13 +13,8 @@ const resolveDestinations = <Options>(
   const seen = new Set<string>();
   return toArray(input)
     .map((entry) => {
-      if (
-        typeof entry?.trackingDestinationId !== 'string' ||
-        !entry.trackingDestinationId.trim()
-      ) {
-        throw new TypeError(
-          'Each destination requires a trackingDestinationId',
-        );
+      if (typeof entry?.trackingDestinationId !== 'string' || !entry.trackingDestinationId.trim()) {
+        throw new TypeError('Each destination requires a trackingDestinationId');
       }
       const id = entry.trackingDestinationId.trim();
       if (seen.has(id)) {
@@ -50,5 +40,6 @@ export const preparePlatforms = (config: AdsPixelConfig) => {
     google: resolveDestinations(config.google, defaults, true),
     meta: resolveDestinations(config.meta, defaults, true),
     openai: resolveDestinations(config.openai, defaults, false),
+    linkedin: resolveDestinations(config.linkedin, defaults, true),
   };
 };

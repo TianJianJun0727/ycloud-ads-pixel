@@ -1,7 +1,6 @@
 import type { GOOGLE_RECOMMENDED_EVENTS } from './constants';
 
-export type GoogleRecommendedEventName =
-  (typeof GOOGLE_RECOMMENDED_EVENTS)[number];
+export type GoogleRecommendedEventName = (typeof GOOGLE_RECOMMENDED_EVENTS)[number];
 
 export type GoogleConsentState = 'granted' | 'denied';
 
@@ -37,6 +36,7 @@ export type GoogleItem = Record<string, unknown> & {
   creative_name?: string;
   creative_slot?: string;
   discount?: number;
+  google_business_vertical?: string;
   index?: number;
   item_brand?: string;
   item_category?: string;
@@ -57,34 +57,50 @@ export type GoogleItem = Record<string, unknown> & {
 export type GoogleEventProperties = GoogleControlParameters &
   Record<string, unknown> & {
     achievement_id?: string;
+    app_name?: string;
     affiliation?: string;
+    character?: string;
     checkout_option?: string;
     checkout_step?: number;
     content_group?: string;
     content_id?: string;
     content_type?: string;
     coupon?: string;
-    send_to?: string;
+    creative_name?: string;
+    creative_slot?: string;
+    customer_type?: 'new' | 'returning';
+    new_customer?: boolean;
     value?: number;
     currency?: string;
     description?: string;
+    disqualified_lead_reason?: string;
     fatal?: boolean;
     group_id?: string;
-    items?: GoogleItem[];
+    items?: readonly GoogleItem[];
+    item_id?: string;
     item_list_id?: string;
     item_list_name?: string;
+    lead_source?: string;
+    lead_status?: string;
     level?: number;
+    level_name?: string;
     method?: string;
     number?: number;
+    page_location?: string;
+    page_title?: string;
     payment_type?: string;
-    promotions?: GoogleItem[];
+    promotion_id?: string;
+    promotion_name?: string;
+    promotions?: readonly GoogleItem[];
     score?: number;
     screen_name?: string;
     search_term?: string;
     shipping?: number;
     shipping_tier?: string;
+    success?: boolean;
     tax?: number;
     transaction_id?: string;
+    unconvert_lead_reason?: string;
     virtual_currency_name?: string;
   };
 
@@ -96,34 +112,13 @@ export type GoogleEventOptions = {
 export interface GoogleTagQueue {
   (...args: unknown[]): void;
   (command: 'js', date: Date): void;
-  (
-    command: 'config',
-    measurementId: string,
-    config?: GoogleConfigParameters,
-  ): void;
-  (
-    command: 'get',
-    target: string,
-    fieldName: GoogleGetFieldName,
-    callback: (value: unknown) => void,
-  ): void;
+  (command: 'config', measurementId: string, config?: GoogleConfigParameters): void;
+  (command: 'get', target: string, fieldName: GoogleGetFieldName, callback: (value: unknown) => void): void;
   (command: 'set', params: Record<string, unknown>): void;
-  (
-    command: 'set',
-    fieldName: 'user_data',
-    value: Record<string, unknown>,
-  ): void;
+  (command: 'set', fieldName: 'user_data', value: Record<string, unknown>): void;
   (command: 'set', fieldName: string, value: unknown): void;
-  (
-    command: 'event',
-    eventName: GoogleRecommendedEventName | string,
-    params?: GoogleEventProperties,
-  ): void;
-  (
-    command: 'consent',
-    consentArg: GoogleConsentArg,
-    consentParams: GoogleConsentParams,
-  ): void;
+  (command: 'event', eventName: GoogleRecommendedEventName | string, params?: GoogleEventProperties): void;
+  (command: 'consent', consentArg: GoogleConsentArg, consentParams: GoogleConsentParams): void;
 }
 
 export type GooglePlatformOptions = { groups?: string | readonly string[] };

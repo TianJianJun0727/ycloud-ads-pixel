@@ -1,9 +1,6 @@
 import type { AdsPixelWindow } from '../core/types';
 
-export const installAdsPixel = (
-  adsPixel: AdsPixelWindow,
-  globalName = 'adsPixel',
-) => {
+export const installAdsPixel = (adsPixel: AdsPixelWindow, globalName = 'adsPixel') => {
   if (typeof window === 'undefined') {
     return;
   }
