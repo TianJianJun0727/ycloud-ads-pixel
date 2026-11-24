@@ -1,5 +1,11 @@
 # Changelog
 
+## [2.0.0-beta.1](https://github.com/TianJianJun0727/ycloud-ads-pixel/compare/v2.0.0-beta.0...v2.0.0-beta.1) (2026-11-24)
+
+### Bug Fixes
+
+* **ads:** honor mixed LinkedIn destinations and disabled consent (MONEY-112) ([9740292](https://github.com/TianJianJun0727/ycloud-ads-pixel/commit/9740292325efd848feb7734fb71eb957b014f1f8))
+
 ## [2.0.0-beta.0](https://github.com/TianJianJun0727/ycloud-ads-pixel/compare/v1.0.0-beta.1...v2.0.0-beta.0) (2026-11-24)
 
 ### ⚠ BREAKING CHANGES
