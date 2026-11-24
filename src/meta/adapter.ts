@@ -1,63 +1,47 @@
-import type { AdAdapter, AdConsent, AdsPixelEvent, AdUser } from '../types';
+import type {
+  AdAdapter,
+  AdConsent,
+  AdsPixelEvent,
+  ImageTagFallback,
+  MetaPlatformOptions,
+  ResolvedDestination,
+  UserIdentity,
+} from '../types';
+import { BaseAdAdapter, getBrowserWindow, loadScript, toArray } from '../utils';
 import {
-  BaseAdAdapter,
-  getBrowserWindow,
-  isBrowser,
-  loadScript,
-  mergeProperties,
-  toArray,
-} from '../utils';
-import { META_DEFAULT_SCRIPT_ID, META_DEFAULT_SCRIPT_SRC } from './constants';
-import type { MetaAdapterConfig, MetaPixelQueue } from './types';
+  META_DEFAULT_SCRIPT_ID,
+  META_DEFAULT_SCRIPT_SRC,
+  META_STANDARD_EVENTS,
+} from './constants';
+import type { MetaPixelQueue } from './types';
+
+const standardEvents = new Set<string>(META_STANDARD_EVENTS);
+const sha256 = /^[a-f\d]{64}$/i;
 
 export class MetaAdapter
-  extends BaseAdAdapter<MetaAdapterConfig>
-  implements AdAdapter<MetaAdapterConfig>
+  extends BaseAdAdapter<MetaPlatformOptions>
+  implements AdAdapter<MetaPlatformOptions>
 {
-  private initialized = false;
-
-  private ownsQueueStub = false;
-
-  private initializationQueued = false;
-
-  private pendingConsent?: AdConsent;
-
-  constructor(config?: MetaAdapterConfig) {
-    super('meta', {
-      scriptId: META_DEFAULT_SCRIPT_ID,
-      scriptSrc: META_DEFAULT_SCRIPT_SRC,
-      trackPageView: true,
-      ...config,
-    });
+  constructor() {
+    super('meta');
   }
 
-  init(config?: MetaAdapterConfig) {
-    super.init(config);
-
-    if (this.initialized || !this.state.isEnabled() || !isBrowser()) {
-      return;
-    }
-
-    if (!this.state.getConfig().pixelIds?.length) {
-      return;
-    }
-
+  init(
+    destinations: readonly ResolvedDestination<MetaPlatformOptions>[],
+    consent?: AdConsent,
+  ) {
+    this.destinations = destinations;
     const browserWindow = getBrowserWindow();
-
-    if (!browserWindow) {
+    if (!browserWindow) return;
+    if (!destinations.length) {
+      if (consent) this.setConsent(consent);
       return;
     }
-
-    const shouldLoadScript = !browserWindow.fbq || this.ownsQueueStub;
 
     if (!browserWindow.fbq) {
       const fbq: MetaPixelQueue = function (...args: unknown[]) {
-        if (fbq.callMethod) {
-          fbq.callMethod(...args);
-          return;
-        }
-
-        fbq.queue?.push(args);
+        if (fbq.callMethod) fbq.callMethod(...args);
+        else fbq.queue?.push(args);
       };
       fbq.push = fbq;
       fbq.loaded = true;
@@ -67,102 +51,118 @@ export class MetaAdapter
       browserWindow._fbq = fbq;
       this.ownsQueueStub = true;
     }
-
-    this.initialized = true;
-
-    if (shouldLoadScript) {
-      loadScript({
-        id: this.state.getConfig().scriptId || META_DEFAULT_SCRIPT_ID,
-        src: this.state.getConfig().scriptSrc || META_DEFAULT_SCRIPT_SRC,
-        onError: () => {
-          this.initialized = false;
-        },
-      });
-    }
-
-    if (this.initializationQueued) {
-      return;
-    }
-
-    if (this.pendingConsent) {
-      const command = this.pendingConsent.advertising ? 'grant' : 'revoke';
-      this.logCall('consent', [command]);
-      browserWindow.fbq?.('consent', command);
-    }
-
-    this.state.getConfig().pixelIds?.forEach((pixelId) => {
-      const advancedMatching = this.state.getConfig().advancedMatching;
-      if (advancedMatching) {
-        this.logCall('init', [pixelId, advancedMatching]);
-        browserWindow.fbq?.('init', pixelId, advancedMatching);
-        return;
-      }
-
-      this.logCall('init', [pixelId]);
-      browserWindow.fbq?.('init', pixelId);
-    });
-
-    if (this.state.getConfig().trackPageView) {
-      this.logCall('track', ['PageView']);
-      browserWindow.fbq?.('track', 'PageView');
-    }
-
-    this.initializationQueued = true;
-  }
-
-  setConsent(consent: AdConsent) {
-    this.pendingConsent = consent;
-
-    const browserWindow = getBrowserWindow();
-    if (!this.initialized || !browserWindow?.fbq) {
-      return;
-    }
-
-    const command = consent.advertising ? 'grant' : 'revoke';
-    this.logCall('consent', [command]);
-    browserWindow.fbq('consent', command);
-  }
-
-  identify(user: AdUser) {
-    void user;
-  }
-
-  track(event: AdsPixelEvent) {
-    const browserWindow = getBrowserWindow();
-
+    if (consent) this.applyConsent(browserWindow.fbq, consent);
     if (
-      !this.state.isEnabled() ||
-      !this.initialized ||
-      !browserWindow?.fbq ||
-      !event.meta
+      this.ownsQueueStub &&
+      document.getElementById(META_DEFAULT_SCRIPT_ID)?.dataset
+        .adsPixelStatus !== 'loaded'
     ) {
-      return;
+      loadScript({ id: META_DEFAULT_SCRIPT_ID, src: META_DEFAULT_SCRIPT_SRC });
     }
 
     const fbq = browserWindow.fbq;
-
-    toArray(event.meta).forEach((metaEvent) => {
-      const properties = mergeProperties(
-        this.state.getDefaultProperties(),
-        event.properties,
-        metaEvent.properties,
-      );
-
-      if (metaEvent.eventId) {
-        const options = {
-          eventID: metaEvent.eventId,
-        };
-        this.logCall(metaEvent.method, [
-          metaEvent.eventName,
-          properties,
-          options,
-        ]);
-        fbq(metaEvent.method, metaEvent.eventName, properties, options);
-        return;
+    for (const destination of destinations) {
+      if (this.initializedIds.has(destination.id)) continue;
+      const matching = destination.platformOptions?.advancedMatching;
+      const args: [string, Record<string, string>?] = matching
+        ? [destination.id, matching]
+        : [destination.id];
+      this.logCall('init', [destination.id], destination.debug);
+      fbq('init', ...args);
+      this.initializedIds.add(destination.id);
+      if (destination.autoTrackPageView) {
+        this.logCall(
+          'trackSingle',
+          [destination.id, 'PageView'],
+          destination.debug,
+        );
+        fbq('trackSingle', destination.id, 'PageView');
       }
+    }
+  }
 
-      this.logCall(metaEvent.method, [metaEvent.eventName, properties]);
-      fbq(metaEvent.method, metaEvent.eventName, properties);
-    });
+  setConsent(consent: AdConsent) {
+    const fbq = getBrowserWindow()?.fbq;
+    if (fbq && this.initializedIds.size) this.applyConsent(fbq, consent);
+  }
+
+  private applyConsent(fbq: MetaPixelQueue, consent: AdConsent) {
+    const command = consent.advertising ? 'grant' : 'revoke';
+    this.logCall('consent', [command]);
+    fbq('consent', command);
+  }
+
+  setUserIdentity(user: UserIdentity) {
+    const fbq = getBrowserWindow()?.fbq;
+    const matching = {
+      ...(user.emailSha256 && sha256.test(user.emailSha256)
+        ? { em: user.emailSha256 }
+        : {}),
+      ...(user.externalIdSha256 && sha256.test(user.externalIdSha256)
+        ? { external_id: user.externalIdSha256 }
+        : {}),
+    };
+    if (!fbq || !Object.keys(matching).length) return;
+
+    for (const destination of this.activeDestinations) {
+      const userData = {
+        ...destination.platformOptions?.advancedMatching,
+        ...matching,
+      };
+      this.logCall('setUserIdentity', [destination.id], destination.debug);
+      fbq('init', destination.id, userData);
+    }
+  }
+
+  track(event: AdsPixelEvent) {
+    const fbq = getBrowserWindow()?.fbq;
+    if (!fbq || !event.meta) return;
+
+    for (const item of toArray(event.meta)) {
+      const eventName = item.eventName ?? event.name;
+      const method = standardEvents.has(eventName)
+        ? 'trackSingle'
+        : 'trackSingleCustom';
+      const properties = {
+        ...(item.eventId ? { event_id: item.eventId } : {}),
+        ...event.properties,
+        ...item.properties,
+      };
+      for (const destination of this.activeDestinations) {
+        if (
+          item.trackingDestinationId &&
+          item.trackingDestinationId !== destination.id
+        )
+          continue;
+        const args: [string, string, typeof properties, { eventID: string }?] =
+          [destination.id, eventName, properties];
+        if (item.eventId) args.push({ eventID: item.eventId });
+        this.logCall(method, args, destination.debug);
+        fbq(method, ...args);
+      }
+    }
+  }
+
+  getImageTagFallbacks(
+    destinations: readonly ResolvedDestination<MetaPlatformOptions>[],
+  ): ImageTagFallback[] {
+    return destinations
+      .filter(
+        ({ autoTrackPageView, imageTagFallback }) =>
+          autoTrackPageView && imageTagFallback,
+      )
+      .map(({ id }) => {
+        const url = new URL('https://www.facebook.com/tr');
+        url.search = new URLSearchParams({
+          id,
+          ev: 'PageView',
+          noscript: '1',
+        }).toString();
+        return {
+          platform: 'meta',
+          trackingDestinationId: id,
+          src: url.toString(),
+        };
+      });
   }
 }

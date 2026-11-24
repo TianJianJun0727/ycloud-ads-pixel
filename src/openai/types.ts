@@ -1,11 +1,3 @@
-import type { AdAdapterConfig } from '../types';
-
-export type OpenAIAdapterConfig = AdAdapterConfig & {
-  scriptId?: string;
-  scriptSrc?: string;
-  pixelId?: string;
-};
-
 export type OpenAIUserData = {
   email_sha256?: string;
   external_id_sha256?: string;
@@ -103,8 +95,11 @@ export type OpenAIStandardEventOptions =
   | OpenAICustomerActionCommand
   | OpenAIPlanEnrollmentCommand;
 
-export type OpenAIEventOptions =
-  OpenAIStandardEventOptions | OpenAICustomCommand;
+export type OpenAIEventOptions = (
+  OpenAIStandardEventOptions | OpenAICustomCommand
+) & {
+  pixelId?: string;
+};
 
 export interface OpenAIAdsQueue {
   (...args: unknown[]): void;
@@ -125,6 +120,20 @@ export interface OpenAIAdsQueue {
   ): void;
   (
     command: 'measure',
+    eventName: 'custom',
+    payload: OpenAICustomPayload,
+    options: OpenAICustomCommand['options'],
+  ): void;
+  (
+    command: 'measureSingle',
+    pixelId: string,
+    eventName: OpenAIStandardEventOptions['eventName'],
+    payload: OpenAIStandardEventOptions['payload'],
+    options?: OpenAIEventOptionsPayload,
+  ): void;
+  (
+    command: 'measureSingle',
+    pixelId: string,
     eventName: 'custom',
     payload: OpenAICustomPayload,
     options: OpenAICustomCommand['options'],

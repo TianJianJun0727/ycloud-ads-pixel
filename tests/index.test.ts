@@ -1,362 +1,352 @@
 import { afterEach, expect, test } from '@rstest/core';
 import { adsPixel, createAdsPixel, installAdsPixel } from '../src/index';
-import type {
-  GoogleTagQueue,
-  MetaPixelQueue,
-  OpenAIAdsQueue,
-} from '../src/index';
+import type { AdsPixelBrowserWindow } from '../src/types';
 
-type AdsPixelTestWindow = Window & {
-  dataLayer?: unknown[];
-  gtag?: GoogleTagQueue;
-  fbq?: MetaPixelQueue;
-  oaiq?: OpenAIAdsQueue;
-};
-
-const getTestWindow = () => window as AdsPixelTestWindow;
+const testWindow = () => window as AdsPixelBrowserWindow;
+const googleQueue = () =>
+  (testWindow().dataLayer ?? []).map((args) => Array.from(args as IArguments));
+const metaQueue = () => testWindow().fbq?.queue ?? [];
+const openAIQueue = () => testWindow().oaiq?.q ?? [];
 
 afterEach(() => {
-  const testWindow = getTestWindow();
-
-  delete testWindow.dataLayer;
-  delete testWindow.gtag;
-  delete testWindow.fbq;
-  delete testWindow.oaiq;
-  document
-    .querySelectorAll(
-      'script[src*="googletagmanager.com/gtag/js"], script[src*="connect.facebook.net"], script[src*="bzrcdn.openai.com/sdk/oaiq.min.js"]',
-    )
-    .forEach((script) => script.remove());
+  const browser = testWindow();
+  delete browser.adsPixel;
+  delete browser.dataLayer;
+  delete browser.gtag;
+  delete browser.fbq;
+  delete browser._fbq;
+  delete browser.oaiq;
+  document.head.querySelectorAll('script').forEach((script) => script.remove());
 });
 
-test('creates the default ads pixel sdk instance', () => {
-  const sdk = createAdsPixel();
-
-  expect(typeof sdk.init).toBe('function');
-  expect(typeof sdk.identify).toBe('function');
-  expect(typeof sdk.track).toBe('function');
-});
-
-test('installs an ads pixel sdk instance on window', () => {
+test('installs the SDK with the four business methods', () => {
   installAdsPixel(adsPixel);
-
-  expect((window as Window & { adsPixel?: typeof adsPixel }).adsPixel).toBe(
-    adsPixel,
-  );
+  const sdk = testWindow().adsPixel;
+  expect(sdk).toBe(adsPixel);
+  expect(typeof sdk?.init).toBe('function');
+  expect(typeof sdk?.setUserIdentity).toBe('function');
+  expect(typeof sdk?.track).toBe('function');
+  expect(typeof sdk?.setConsent).toBe('function');
+  expect(sdk).not.toHaveProperty('identify');
 });
 
-test('queues Google commands as arguments objects for gtag.js', () => {
-  const testWindow = getTestWindow();
-
-  createAdsPixel().init({
-    google: {
-      measurementIds: ['AW-000000000', 'G-0000000000'],
-    },
-    meta: {
-      enabled: false,
-    },
-    openai: {
-      enabled: false,
-    },
-  });
-
-  const commands = testWindow.dataLayer || [];
-
-  expect(commands).toHaveLength(3);
-  commands.forEach((command) => {
-    expect(Array.isArray(command)).toBe(false);
-    expect(Object.prototype.toString.call(command)).toBe('[object Arguments]');
-  });
-  expect(Array.from(commands[0] as IArguments)).toEqual([
-    'js',
-    expect.any(Date),
-  ]);
-  expect(Array.from(commands[1] as IArguments)).toEqual([
-    'config',
-    'AW-000000000',
-  ]);
-  expect(Array.from(commands[2] as IArguments)).toEqual([
-    'config',
-    'G-0000000000',
-  ]);
-});
-
-test('tracks multiple Google events from an event array', () => {
-  const calls: unknown[][] = [];
-  const testWindow = getTestWindow();
-  testWindow.gtag = ((...args: unknown[]) =>
-    calls.push(args)) as GoogleTagQueue;
-
-  const sdk = createAdsPixel({
-    google: { measurementIds: ['AW-000000000'] },
-    meta: { enabled: false },
-    openai: { enabled: false },
+test('initializes object and array destinations, applying each page view default once', () => {
+  const sdk = createAdsPixel();
+  sdk.init({
+    google: { trackingDestinationId: 'AW-123' },
+    meta: [
+      { trackingDestinationId: '123' },
+      { trackingDestinationId: '456', autoTrackPageView: false },
+    ],
+    openai: [
+      { trackingDestinationId: 'agency' },
+      { trackingDestinationId: 'owned', autoTrackPageView: true },
+    ],
   });
   sdk.init();
-  calls.length = 0;
 
+  expect(googleQueue()).toEqual([
+    ['js', expect.any(Date)],
+    ['config', 'AW-123', { send_page_view: true }],
+  ]);
+  expect(Object.prototype.toString.call(testWindow().dataLayer?.[0])).toBe(
+    '[object Arguments]',
+  );
+  expect(metaQueue()).toEqual([
+    ['init', '123'],
+    ['trackSingle', '123', 'PageView'],
+    ['init', '456'],
+  ]);
+  expect(openAIQueue()).toEqual([
+    ['init', { pixelId: 'agency' }],
+    ['init', { pixelId: 'owned' }],
+    ['measureSingle', 'owned', 'page_viewed', { type: 'contents' }],
+  ]);
+});
+
+test('destination enable overrides govern initialization, identity, and events', () => {
+  const sdk = createAdsPixel();
+  sdk.init({
+    globalDefaults: { enabled: false },
+    google: [
+      { trackingDestinationId: 'AW-enabled', enabled: true },
+      { trackingDestinationId: 'AW-disabled' },
+    ],
+    meta: [
+      {
+        trackingDestinationId: 'meta-enabled',
+        enabled: true,
+        autoTrackPageView: false,
+      },
+      { trackingDestinationId: 'meta-disabled' },
+    ],
+    openai: [
+      { trackingDestinationId: 'enabled', enabled: true },
+      { trackingDestinationId: 'disabled' },
+    ],
+  });
+  const hash = 'a'.repeat(64);
+  sdk.setUserIdentity({ emailSha256: hash, city: 'Shanghai' });
   sdk.track({
-    name: 'fallback_event',
-    properties: {
-      tenant_id: 'tenant-id',
-    },
+    name: 'registration_completed',
+    google: {},
+    meta: { eventName: 'CompleteRegistration' },
+    openai: {},
+  });
+
+  expect(googleQueue().slice(1)).toEqual([
+    ['config', 'AW-enabled', { send_page_view: true }],
+    [
+      'event',
+      'registration_completed',
+      { send_to: 'AW-enabled', user_data: { sha256_email_address: hash } },
+    ],
+  ]);
+  expect(metaQueue()).toEqual([
+    ['init', 'meta-enabled'],
+    ['init', 'meta-enabled', { em: hash }],
+    ['trackSingle', 'meta-enabled', 'CompleteRegistration', {}],
+  ]);
+  expect(openAIQueue()).toEqual([
+    ['init', { pixelId: 'enabled' }],
+    [
+      'init',
+      { pixelId: 'enabled', user: { email_sha256: hash, city: 'Shanghai' } },
+    ],
+    [
+      'measureSingle',
+      'enabled',
+      'registration_completed',
+      { type: 'customer_action' },
+    ],
+  ]);
+
+  sdk.init({ openai: { trackingDestinationId: 'enabled', enabled: false } });
+  sdk.track({ name: 'registration_completed', openai: {} });
+  sdk.setUserIdentity({ emailSha256: hash, platforms: ['openai'] });
+  expect(openAIQueue()).toHaveLength(3);
+});
+
+test('retries failed vendor scripts without queuing a second initialization', () => {
+  const createElement = document.createElement;
+  const sources: HTMLScriptElement[] = [];
+  document.createElement = ((tag: string) => {
+    const element = createElement.call(document, tag);
+    if (tag === 'script') sources.push(element as HTMLScriptElement);
+    return element;
+  }) as typeof document.createElement;
+
+  try {
+    const sdk = createAdsPixel();
+    sdk.init({
+      google: { trackingDestinationId: 'AW-123' },
+      meta: { trackingDestinationId: '123' },
+      openai: { trackingDestinationId: 'openai' },
+    });
+    expect(sources).toHaveLength(3);
+    sources.forEach((script) => script.dispatchEvent(new Event('error')));
+    expect(document.scripts).toHaveLength(0);
+
+    sdk.init();
+    expect(sources).toHaveLength(6);
+    expect(sources.slice(3).map((script) => script.src)).toEqual(
+      sources.slice(0, 3).map((script) => script.src),
+    );
+    expect(googleQueue()).toHaveLength(2);
+    expect(metaQueue()).toHaveLength(2);
+    expect(openAIQueue()).toHaveLength(1);
+  } finally {
+    document.createElement = createElement;
+  }
+});
+
+test('does not duplicate a Google tag script already on the page', () => {
+  const script = document.createElement('script');
+  script.src = 'https://www.googletagmanager.com/gtag/js?id=G-previous';
+  document.head.appendChild(script);
+  createAdsPixel().init({ google: { trackingDestinationId: 'AW-123' } });
+  expect(Array.from(document.scripts)).toEqual([script]);
+});
+
+test('validates destination identities before running vendor commands', () => {
+  const sdk = createAdsPixel();
+  expect(() =>
+    sdk.init({
+      google: { trackingDestinationId: 'AW-123' },
+      meta: [
+        { trackingDestinationId: '123' },
+        { trackingDestinationId: ' 123 ' },
+      ],
+    }),
+  ).toThrow('Duplicate tracking destination: 123');
+  expect(() =>
+    sdk.init({
+      openai: { pixelId: 'legacy' } as never,
+    }),
+  ).toThrow('Each destination requires a trackingDestinationId');
+  expect(googleQueue()).toEqual([]);
+  expect(metaQueue()).toEqual([]);
+  expect(openAIQueue()).toEqual([]);
+});
+
+test('scopes each Google and Meta event, merging shared values with platform values', () => {
+  const sdk = createAdsPixel();
+  sdk.init({
+    google: [
+      { trackingDestinationId: 'AW-123', platformOptions: { groups: 'ads' } },
+      { trackingDestinationId: 'G-456' },
+    ],
+    meta: { trackingDestinationId: '123', autoTrackPageView: false },
+  });
+  sdk.track({
+    name: 'purchase',
+    properties: { currency: 'USD', value: 20 },
     google: [
       {
         eventName: 'conversion',
-        properties: {
-          send_to: 'AW-000000000/example',
-        },
+        eventId: 'order-1',
+        platformOptions: { conversionLabel: 'label', destinationGroup: 'ads' },
       },
-      {
-        eventName: 'sign_up',
-        properties: {
-          method: 'email',
-        },
-      },
+      { trackingDestinationId: 'G-456', properties: { value: 10 } },
+    ],
+    meta: [
+      { eventName: 'Purchase', eventId: 'order-1' },
+      { eventName: 'waba_created' },
     ],
   });
 
-  expect(calls).toEqual([
+  expect(googleQueue().slice(3)).toEqual([
     [
       'event',
       'conversion',
       {
-        tenant_id: 'tenant-id',
-        send_to: 'AW-000000000/example',
+        currency: 'USD',
+        value: 20,
+        transaction_id: 'order-1',
+        send_to: 'AW-123/label',
       },
     ],
+    ['event', 'purchase', { currency: 'USD', value: 10, send_to: 'G-456' }],
+  ]);
+  expect(metaQueue().slice(1)).toEqual([
     [
-      'event',
-      'sign_up',
-      {
-        tenant_id: 'tenant-id',
-        method: 'email',
-      },
+      'trackSingle',
+      '123',
+      'Purchase',
+      { currency: 'USD', value: 20, event_id: 'order-1' },
+      { eventID: 'order-1' },
+    ],
+    [
+      'trackSingleCustom',
+      '123',
+      'waba_created',
+      { currency: 'USD', value: 20 },
     ],
   ]);
 });
 
-test('reports platform calls through the debug logger', () => {
-  const calls: unknown[][] = [];
-  const debugCalls: unknown[] = [];
-  const testWindow = getTestWindow();
-  testWindow.gtag = ((...args: unknown[]) =>
-    calls.push(args)) as GoogleTagQueue;
-
-  const sdk = createAdsPixel({
-    google: {
-      measurementIds: ['AW-000000000'],
-      debug: true,
-      debugLogger: (call) => debugCalls.push(call),
-    },
-    meta: { enabled: false },
-    openai: { enabled: false },
-  });
-  sdk.init();
-  calls.length = 0;
-  debugCalls.length = 0;
-
-  sdk.track({
-    name: 'sign_up',
-    google: {
-      eventName: 'sign_up',
-      properties: {
-        method: 'email',
-      },
-    },
-  });
-
-  expect(debugCalls).toEqual([
-    {
-      platform: 'google',
-      command: 'event',
-      args: ['sign_up', { method: 'email' }],
-    },
-  ]);
-  expect(calls).toEqual([['event', 'sign_up', { method: 'email' }]]);
-});
-
-test('tracks multiple Meta events from an event array', () => {
-  const calls: unknown[][] = [];
-  const testWindow = getTestWindow();
-  testWindow.fbq = ((...args: unknown[]) => calls.push(args)) as MetaPixelQueue;
-
-  const sdk = createAdsPixel({
-    google: { enabled: false },
-    meta: { pixelIds: ['000000000'] },
-    openai: { enabled: false },
-  });
-  sdk.init();
-  calls.length = 0;
-
-  sdk.track({
-    name: 'registration_completed',
-    properties: {
-      tenant_id: 'tenant-id',
-    },
-    meta: [
-      {
-        method: 'track',
-        eventName: 'Lead',
-      },
-      {
-        method: 'trackCustom',
-        eventName: 'RegistrationSource',
-        properties: {
-          source: 'register_success',
-        },
-      },
+test('normalizes OpenAI events identically for both pixels and scopes agency-only events', () => {
+  const sdk = createAdsPixel();
+  sdk.init({
+    openai: [
+      { trackingDestinationId: 'agency' },
+      { trackingDestinationId: 'owned' },
     ],
   });
-
-  expect(calls).toEqual([
-    [
-      'track',
-      'Lead',
-      {
-        tenant_id: 'tenant-id',
-      },
-    ],
-    [
-      'trackCustom',
-      'RegistrationSource',
-      {
-        tenant_id: 'tenant-id',
-        source: 'register_success',
-      },
-    ],
-  ]);
-});
-
-test('does not reinitialize Meta Pixel when identifying a user', () => {
-  const calls: unknown[][] = [];
-  const testWindow = getTestWindow();
-  testWindow.fbq = ((...args: unknown[]) => calls.push(args)) as MetaPixelQueue;
-
-  const sdk = createAdsPixel({
-    google: { enabled: false },
-    meta: { pixelIds: ['000000000'] },
-    openai: { enabled: false },
-  });
-  sdk.init();
-  calls.length = 0;
-
-  sdk.identify({ google: { email: 'test@example.com' } });
-
-  expect(calls).toEqual([]);
-});
-
-test('tracks multiple OpenAI events from an event array', () => {
-  const calls: unknown[][] = [];
-  const testWindow = getTestWindow();
-  const queue = ((...args: unknown[]) => calls.push(args)) as OpenAIAdsQueue;
-  queue.q = [];
-  testWindow.oaiq = queue;
-
-  const sdk = createAdsPixel({
-    google: { enabled: false },
-    meta: { enabled: false },
-    openai: { pixelId: 'pixel-id' },
-  });
-  sdk.init();
-  calls.length = 0;
-
+  sdk.track({ name: 'registration_completed', openai: { eventId: 'reg-1' } });
+  sdk.track({ name: 'waba_created', openai: { eventId: 'waba-1' } });
   sdk.track({
-    name: 'registration_completed',
+    name: 'payment',
+    properties: { plan_id: 'pro', amount: 1234, currency: 'USD' },
     openai: [
       {
-        eventName: 'registration_completed',
-        payload: {
-          type: 'customer_action',
-        },
+        eventName: 'subscription_created',
+        trackingDestinationId: 'agency',
+        eventId: 'paid-1',
       },
-      {
-        eventName: 'custom',
-        payload: {
-          type: 'custom',
-        },
-        options: {
-          custom_event_name: 'registration_source',
-        },
-      },
+      { eventName: 'order_created', eventId: 'order-1' },
+      { eventName: 'trial_started', trackingDestinationId: 'external' },
     ],
   });
 
-  expect(calls).toEqual([
-    [
-      'measure',
+  expect(openAIQueue().slice(2)).toEqual([
+    ...['agency', 'owned'].map((id) => [
+      'measureSingle',
+      id,
       'registration_completed',
-      {
-        type: 'customer_action',
-      },
-    ],
-    [
-      'measure',
+      { type: 'customer_action' },
+      { event_id: 'reg-1' },
+    ]),
+    ...['agency', 'owned'].map((id) => [
+      'measureSingle',
+      id,
       'custom',
+      { type: 'custom' },
+      { custom_event_name: 'waba_created', event_id: 'waba-1' },
+    ]),
+    [
+      'measureSingle',
+      'agency',
+      'subscription_created',
       {
-        type: 'custom',
+        type: 'plan_enrollment',
+        plan_id: 'pro',
+        amount: 1234,
+        currency: 'USD',
       },
-      {
-        custom_event_name: 'registration_source',
-      },
+      { event_id: 'paid-1' },
     ],
+    ...['agency', 'owned'].map((id) => [
+      'measureSingle',
+      id,
+      'order_created',
+      {
+        type: 'contents',
+        contents: [{ id: 'pro' }],
+        amount: 1234,
+        currency: 'USD',
+      },
+      { event_id: 'order-1' },
+    ]),
   ]);
 });
 
-test('does not send events through adapters that were not initialized', () => {
-  const googleCalls: unknown[][] = [];
-  const metaCalls: unknown[][] = [];
-  const openAICalls: unknown[][] = [];
-  const testWindow = getTestWindow();
-  testWindow.gtag = ((...args: unknown[]) =>
-    googleCalls.push(args)) as GoogleTagQueue;
-  testWindow.fbq = ((...args: unknown[]) =>
-    metaCalls.push(args)) as MetaPixelQueue;
-  const openAIQueue = ((...args: unknown[]) =>
-    openAICalls.push(args)) as OpenAIAdsQueue;
-  openAIQueue.q = [];
-  testWindow.oaiq = openAIQueue;
+test('ignores disabled platforms even with an existing vendor queue', () => {
+  const commands: unknown[][] = [];
+  const observe = (...args: unknown[]) => {
+    commands.push(args);
+  };
+  testWindow().gtag = observe;
+  testWindow().fbq = observe;
+  testWindow().oaiq = Object.assign(observe, { q: [] });
 
   const sdk = createAdsPixel();
-  sdk.identify({ google: { email: 'test@example.com' } });
-  sdk.track({
-    name: 'unexpected',
-    google: { eventName: 'unexpected' },
-    meta: { method: 'trackCustom', eventName: 'Unexpected' },
-    openai: {
-      eventName: 'custom',
-      payload: { type: 'custom' },
-      options: { custom_event_name: 'unexpected' },
-    },
+  sdk.init({
+    globalDefaults: { enabled: false },
+    google: { trackingDestinationId: 'AW-123' },
   });
-
-  expect(googleCalls).toEqual([]);
-  expect(metaCalls).toEqual([]);
-  expect(openAICalls).toEqual([]);
+  sdk.setConsent({ advertising: true });
+  sdk.setUserIdentity({ email: 'test@example.test' });
+  sdk.track({
+    name: 'registration_completed',
+    google: {},
+    meta: {},
+    openai: {},
+  });
+  expect(commands).toEqual([]);
 });
 
-test('applies default consent before platform initialization', () => {
-  const googleCalls: unknown[][] = [];
-  const metaCalls: unknown[][] = [];
-  const openAICalls: unknown[][] = [];
-  const testWindow = getTestWindow();
-  testWindow.gtag = ((...args: unknown[]) =>
-    googleCalls.push(args)) as GoogleTagQueue;
-  testWindow.fbq = ((...args: unknown[]) =>
-    metaCalls.push(args)) as MetaPixelQueue;
-  const openAIQueue = ((...args: unknown[]) =>
-    openAICalls.push(args)) as OpenAIAdsQueue;
-  openAIQueue.q = [];
-  testWindow.oaiq = openAIQueue;
-
-  createAdsPixel({
-    consent: { advertising: false, analytics: true },
-    google: { measurementIds: ['AW-000000000'] },
-    meta: { pixelIds: ['000000000'] },
-    openai: { pixelId: 'pixel-id' },
-  }).init();
-
-  expect(googleCalls[0]).toEqual([
+test('applies pre-init authorization before any vendor init and supports immediate updates', () => {
+  const sdk = createAdsPixel();
+  sdk.setConsent({ advertising: false, analytics: true });
+  const result = sdk.init({
+    consent: { advertising: true },
+    google: { trackingDestinationId: 'AW-123' },
+    meta: { trackingDestinationId: '123' },
+    openai: { trackingDestinationId: 'openai', autoTrackPageView: true },
+  });
+  expect(result.imageTagFallbacks).toEqual([]);
+  expect(googleQueue()[0]).toEqual([
     'consent',
     'default',
     {
@@ -366,173 +356,111 @@ test('applies default consent before platform initialization', () => {
       analytics_storage: 'granted',
     },
   ]);
-  expect(metaCalls[0]).toEqual(['consent', 'revoke']);
-  expect(openAICalls[0]).toEqual(['consent', false]);
+  expect(metaQueue()[0]).toEqual(['consent', 'revoke']);
+  expect(openAIQueue()[0]).toEqual(['consent', false]);
+
+  sdk.setConsent({ advertising: true });
+  expect(googleQueue().at(-1)?.slice(0, 2)).toEqual(['consent', 'update']);
+  expect(metaQueue().at(-1)).toEqual(['consent', 'grant']);
+  expect(openAIQueue().at(-1)).toEqual(['consent', true]);
 });
 
-test('updates OpenAI identity with supported hashed user fields', () => {
-  const calls: unknown[][] = [];
-  const testWindow = getTestWindow();
-  const queue = ((...args: unknown[]) => calls.push(args)) as OpenAIAdsQueue;
-  queue.q = [];
-  testWindow.oaiq = queue;
-  const sdk = createAdsPixel({
-    google: { enabled: false },
-    meta: { enabled: false },
-    openai: { pixelId: 'pixel-id' },
-  });
-  sdk.init();
-  calls.length = 0;
-
-  const emailSha256 = 'a'.repeat(64);
-  sdk.identify({ openai: { email_sha256: emailSha256, country: 'US' } });
-
-  expect(calls).toEqual([
-    [
-      'init',
-      {
-        pixelId: 'pixel-id',
-        user: { email_sha256: emailSha256, country: 'US' },
-      },
+test('returns page view image fallback descriptors only for eligible destinations', () => {
+  const { imageTagFallbacks } = createAdsPixel().init({
+    consent: { advertising: true },
+    google: { trackingDestinationId: 'AW-123' },
+    meta: [
+      { trackingDestinationId: '123' },
+      { trackingDestinationId: '456', imageTagFallback: false },
+      { trackingDestinationId: '789', enabled: false },
     ],
+    openai: [
+      { trackingDestinationId: 'agency' },
+      { trackingDestinationId: 'owned', autoTrackPageView: true },
+    ],
+  });
+  expect(imageTagFallbacks).toEqual([
+    {
+      platform: 'meta',
+      trackingDestinationId: '123',
+      src: 'https://www.facebook.com/tr?id=123&ev=PageView&noscript=1',
+    },
+    {
+      platform: 'openai',
+      trackingDestinationId: 'owned',
+      src: 'https://bzr.openai.com/v1/sdk/events?pid=owned&event=page_viewed&data%5Btype%5D=contents',
+    },
   ]);
 });
 
-test('does not inject a duplicate Google script for another destination', () => {
-  const existingScript = document.createElement('script');
-  existingScript.id = 'existing-google-tag';
-  existingScript.src = 'https://www.googletagmanager.com/gtag/js?id=G-EXISTING';
-  document.head.appendChild(existingScript);
-
-  createAdsPixel({
-    google: { measurementIds: ['AW-000000000'] },
-    meta: { enabled: false },
-    openai: { enabled: false },
-  }).init();
-
-  expect(
-    document.querySelectorAll(
-      'script[src*="https://www.googletagmanager.com/gtag/js"]',
-    ),
-  ).toHaveLength(1);
-});
-
-test('retries vendor script loading after an error', () => {
-  const originalCreateElement = document.createElement.bind(document);
-  let scriptCreationCount = 0;
-  document.createElement = ((
-    tagName: string,
-    options?: ElementCreationOptions,
-  ) => {
-    if (tagName === 'script') {
-      scriptCreationCount += 1;
-    }
-    return originalCreateElement(tagName, options);
-  }) as typeof document.createElement;
-
-  const sdk = createAdsPixel({
-    google: { measurementIds: ['AW-000000000'] },
-    meta: { pixelIds: ['000000000'] },
-    openai: { pixelId: 'pixel-id' },
-  });
-  try {
-    sdk.init();
-    sdk.init();
-
-    expect(scriptCreationCount).toBe(6);
-    expect(getTestWindow().dataLayer).toHaveLength(2);
-    expect(getTestWindow().fbq?.queue).toHaveLength(2);
-    expect(getTestWindow().oaiq?.q).toHaveLength(1);
-  } finally {
-    document.createElement = originalCreateElement;
-  }
-});
-
-test('does not send invalid OpenAI amount payloads', () => {
-  const calls: unknown[][] = [];
-  const testWindow = getTestWindow();
-  const queue = ((...args: unknown[]) => calls.push(args)) as OpenAIAdsQueue;
-  queue.q = [];
-  testWindow.oaiq = queue;
-  const sdk = createAdsPixel({
-    google: { enabled: false },
-    meta: { enabled: false },
-    openai: { pixelId: 'pixel-id' },
-  });
-  sdk.init();
-  calls.length = 0;
-
-  sdk.track({
-    name: 'subscription_created',
-    openai: {
-      eventName: 'subscription_created',
-      payload: {
-        type: 'plan_enrollment',
-        amount: 12.34,
-        currency: 'USD',
-      },
-    },
-  });
-
-  expect(calls).toEqual([]);
-});
-
-test('does not send invalid OpenAI content amounts or quantities', () => {
-  const calls: unknown[][] = [];
-  const testWindow = getTestWindow();
-  const queue = ((...args: unknown[]) => calls.push(args)) as OpenAIAdsQueue;
-  queue.q = [];
-  testWindow.oaiq = queue;
-  const sdk = createAdsPixel({
-    google: { enabled: false },
-    meta: { enabled: false },
-    openai: { pixelId: 'pixel-id' },
-  });
-  sdk.init();
-  calls.length = 0;
-
+test('validates OpenAI amounts and quantities and sends only supported content fields', () => {
+  const sdk = createAdsPixel();
+  sdk.init({ openai: { trackingDestinationId: 'owned' } });
   sdk.track({
     name: 'order_created',
-    openai: [
-      {
-        eventName: 'order_created',
-        payload: {
-          type: 'contents',
-          contents: [{ amount: 12.34, currency: 'USD' }],
-        },
-      },
-      {
-        eventName: 'order_created',
-        payload: {
-          type: 'contents',
-          contents: [{ quantity: 1.5 }],
-        },
-      },
-      {
-        eventName: 'order_created',
-        payload: {
-          type: 'contents',
-          contents: [{ amount: 1234 }],
-        },
-      },
-      {
-        eventName: 'order_created',
-        payload: {
-          type: 'contents',
-          contents: [{ amount: 1234, currency: 'USD', quantity: 1 }],
-        },
-      },
-    ],
+    openai: { properties: { amount: 1.1, currency: 'USD' } },
   });
-
-  expect(calls).toEqual([
+  sdk.track({
+    name: 'order_created',
+    openai: { properties: { contents: [{ id: 'pro', quantity: 1.5 }] } },
+  });
+  sdk.track({
+    name: 'order_created',
+    openai: {
+      properties: { contents: [{ id: 'pro', quantity: 1, unexpected: true }] },
+    },
+  });
+  expect(openAIQueue()).toEqual([
+    ['init', { pixelId: 'owned' }],
     [
-      'measure',
+      'measureSingle',
+      'owned',
       'order_created',
-      {
-        type: 'contents',
-        contents: [{ amount: 1234, currency: 'USD', quantity: 1 }],
-      },
+      { type: 'contents', contents: [{ id: 'pro', quantity: 1 }] },
     ],
   ]);
+});
+
+test('includes only explicitly scoped, supported fields in identity updates', () => {
+  const sdk = createAdsPixel();
+  sdk.init({
+    google: { trackingDestinationId: 'AW-123' },
+    openai: { trackingDestinationId: 'owned' },
+  });
+  sdk.setUserIdentity({ email: 'test@example.test', platforms: ['google'] });
+  sdk.setUserIdentity({ emailSha256: 'invalid', platforms: ['openai'] });
+  sdk.track({ name: 'conversion', google: {} });
+
+  expect(googleQueue().at(-1)).toEqual([
+    'event',
+    'conversion',
+    { send_to: 'AW-123', user_data: { email: 'test@example.test' } },
+  ]);
+  expect(openAIQueue()).toEqual([['init', { pixelId: 'owned' }]]);
+});
+
+test('uses destination debug instead of the outer default for vendor event logs', () => {
+  const calls: unknown[][] = [];
+  const debug = console.debug;
+  console.debug = (...args: unknown[]) => {
+    calls.push(args);
+  };
+  try {
+    const sdk = createAdsPixel();
+    sdk.init({
+      globalDefaults: { debug: true },
+      openai: [
+        { trackingDestinationId: 'default' },
+        { trackingDestinationId: 'quiet', debug: false },
+      ],
+    });
+    sdk.track({ name: 'registration_completed', openai: {} });
+    expect(
+      calls
+        .filter((args) => args[2] === 'measureSingle')
+        .map((args) => args[3]),
+    ).toEqual(['default']);
+  } finally {
+    console.debug = debug;
+  }
 });

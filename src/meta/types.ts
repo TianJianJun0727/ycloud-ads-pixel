@@ -1,13 +1,3 @@
-import type { AdAdapterConfig } from '../types';
-
-export type MetaAdapterConfig = AdAdapterConfig & {
-  scriptId?: string;
-  scriptSrc?: string;
-  pixelIds?: readonly string[];
-  trackPageView?: boolean;
-  advancedMatching?: MetaAdvancedMatching;
-};
-
 export type MetaAdvancedMatching = Record<string, string>;
 
 export type MetaContent = {
@@ -75,6 +65,13 @@ export interface MetaPixelQueue {
   ): void;
   (
     method: 'track' | 'trackCustom',
+    eventName: string,
+    params?: Record<string, unknown>,
+    options?: { eventID?: string },
+  ): void;
+  (
+    method: 'trackSingle' | 'trackSingleCustom',
+    pixelId: string,
     eventName: string,
     params?: Record<string, unknown>,
     options?: { eventID?: string },

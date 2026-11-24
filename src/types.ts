@@ -1,64 +1,102 @@
-import type { GoogleAdapterConfig, GoogleEventOptions } from './google/types';
-import type { MetaAdapterConfig, MetaEventOptions } from './meta/types';
-import type {
-  OpenAIAdapterConfig,
-  OpenAIEventOptions,
-  OpenAIUserData,
-} from './openai/types';
+import type { OpenAIUserData } from './openai/types';
 
-export type OneOrMany<T> = T | T[];
+export type OneOrMany<T> = T | readonly T[];
 
-export type AdAdapterDebugCall = {
-  platform: string;
-  command: string;
-  args: unknown[];
-};
-
-export type AdConsent = {
-  advertising: boolean;
-  analytics?: boolean;
-};
-
-export type AdUser = {
-  google?: Record<string, unknown>;
-  openai?: OpenAIUserData;
-};
-
-export type AdAdapterConfig = {
+export type GlobalDefaults = {
   enabled?: boolean;
   debug?: boolean;
-  debugLogger?: (call: AdAdapterDebugCall) => void;
-  defaultProperties?: Record<string, unknown>;
 };
+
+export type TrackingDestination<PlatformOptions> = GlobalDefaults & {
+  trackingDestinationId: string;
+  autoTrackPageView?: boolean;
+  imageTagFallback?: boolean;
+  platformOptions?: PlatformOptions;
+};
+
+export type GooglePlatformOptions = { groups?: string | readonly string[] };
+export type MetaPlatformOptions = { advancedMatching?: Record<string, string> };
+export type OpenAIPlatformOptions = { user?: OpenAIUserData };
+
+export type AdConsent = { advertising: boolean; analytics?: boolean };
+
+export type TrackingPlatform = 'google' | 'meta' | 'openai';
+
+export type UserIdentity = {
+  platforms?: readonly TrackingPlatform[];
+  email?: string;
+  emailSha256?: string;
+  externalIdSha256?: string;
+  country?: string;
+  city?: string;
+  postalCode?: string;
+};
+
+export type PlatformEvent<Options = never> = {
+  eventName?: string;
+  trackingDestinationId?: string;
+  eventId?: string;
+  properties?: Record<string, unknown>;
+  platformOptions?: Options;
+};
+
+export type GoogleEventPlatformOptions = {
+  conversionLabel?: string;
+  destinationGroup?: string;
+};
+export type OpenAIEventPlatformOptions = { optOut?: boolean };
 
 export type AdsPixelEvent = {
   name: string;
   properties?: Record<string, unknown>;
-  google?: OneOrMany<GoogleEventOptions>;
-  meta?: OneOrMany<MetaEventOptions>;
-  openai?: OneOrMany<OpenAIEventOptions>;
+  google?: OneOrMany<PlatformEvent<GoogleEventPlatformOptions>>;
+  meta?: OneOrMany<PlatformEvent>;
+  openai?: OneOrMany<PlatformEvent<OpenAIEventPlatformOptions>>;
 };
-
-export interface AdAdapter<Config extends AdAdapterConfig = AdAdapterConfig> {
-  init(config?: Config): void;
-  setConsent(consent: AdConsent): void;
-  identify(user: AdUser): void;
-  track(event: AdsPixelEvent): void;
-}
 
 export type AdsPixelConfig = {
-  enabled?: boolean;
+  globalDefaults?: GlobalDefaults;
   consent?: AdConsent;
-  google?: GoogleAdapterConfig;
-  meta?: MetaAdapterConfig;
-  openai?: OpenAIAdapterConfig;
+  google?: OneOrMany<TrackingDestination<GooglePlatformOptions>>;
+  meta?: OneOrMany<TrackingDestination<MetaPlatformOptions>>;
+  openai?: OneOrMany<TrackingDestination<OpenAIPlatformOptions>>;
 };
 
-export type AdsPixelWindow = {
-  init(config?: AdsPixelConfig): void;
+export type ImageTagFallback = {
+  platform: 'meta' | 'openai';
+  trackingDestinationId: string;
+  src: string;
+};
+
+export type AdsPixelInitResult = {
+  imageTagFallbacks: readonly ImageTagFallback[];
+};
+
+export type ResolvedDestination<Options> = Required<GlobalDefaults> & {
+  id: string;
+  autoTrackPageView: boolean;
+  imageTagFallback: boolean;
+  platformOptions?: Options;
+};
+
+export interface AdAdapter<Options> {
+  init(
+    destinations: readonly ResolvedDestination<Options>[],
+    consent?: AdConsent,
+  ): void;
   setConsent(consent: AdConsent): void;
-  identify(user: AdUser): void;
+  setUserIdentity(user: UserIdentity): void;
   track(event: AdsPixelEvent): void;
+  getImageTagFallbacks?(
+    destinations: readonly ResolvedDestination<Options>[],
+  ): ImageTagFallback[];
+}
+
+export type AdsPixelWindow = {
+  init(config?: AdsPixelConfig): AdsPixelInitResult;
+  setUserIdentity(user: UserIdentity): void;
+  track(event: AdsPixelEvent): void;
+  setConsent(consent: AdConsent): void;
 };
 
 export type AdsPixelBrowserWindow = Window & {

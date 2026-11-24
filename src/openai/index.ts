@@ -14,7 +14,6 @@ export {
   OPENAI_STANDARD_EVENTS,
 } from './constants';
 export type {
-  OpenAIAdapterConfig,
   OpenAIAdsQueue,
   OpenAIContent,
   OpenAIContentEventName,

@@ -41,7 +41,6 @@ export {
 } from './openai';
 
 export type {
-  GoogleAdapterConfig,
   GoogleConfigParameters,
   GoogleConsentArg,
   GoogleConsentParams,
@@ -56,7 +55,6 @@ export type {
 } from './google';
 
 export type {
-  MetaAdapterConfig,
   MetaAdvancedMatching,
   MetaContent,
   MetaCustomEventOptions,
@@ -68,7 +66,6 @@ export type {
 } from './meta';
 
 export type {
-  OpenAIAdapterConfig,
   OpenAIContent,
   OpenAIContentEventName,
   OpenAIContentsPayload,
@@ -91,18 +88,29 @@ export type {
   AdsPixelEvent,
   AdsPixelWindow,
   AdAdapter,
-  AdAdapterConfig,
-  AdAdapterDebugCall,
   AdConsent,
-  AdUser,
+  UserIdentity,
+  PlatformEvent,
+  TrackingPlatform,
+  GoogleEventPlatformOptions,
+  OpenAIEventPlatformOptions,
+  GlobalDefaults,
+  TrackingDestination,
+  GooglePlatformOptions,
+  MetaPlatformOptions,
+  OpenAIPlatformOptions,
+  OneOrMany,
+  AdsPixelInitResult,
+  ImageTagFallback,
+  ResolvedDestination,
 } from './types';
 
 export const createAdsPixel = (config: AdsPixelConfig = {}) =>
   new AdsPixel(
     {
-      google: new GoogleAdapter(config.google),
-      meta: new MetaAdapter(config.meta),
-      openai: new OpenAIAdapter(config.openai),
+      google: new GoogleAdapter(),
+      meta: new MetaAdapter(),
+      openai: new OpenAIAdapter(),
     },
     config,
   );

@@ -9,7 +9,6 @@ export {
   GOOGLE_RECOMMENDED_EVENTS,
 } from './constants';
 export type {
-  GoogleAdapterConfig,
   GoogleConfigParameters,
   GoogleConsentArg,
   GoogleConsentParams,

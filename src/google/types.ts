@@ -1,11 +1,4 @@
-import type { AdAdapterConfig } from '../types';
 import type { GOOGLE_RECOMMENDED_EVENTS } from './constants';
-
-export type GoogleAdapterConfig = AdAdapterConfig & {
-  scriptId?: string;
-  scriptSrc?: string;
-  measurementIds?: readonly string[];
-};
 
 export type GoogleRecommendedEventName =
   (typeof GOOGLE_RECOMMENDED_EVENTS)[number];

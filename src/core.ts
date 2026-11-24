@@ -1,77 +1,75 @@
+import { preparePlatforms } from './destinations';
 import type {
-  AdsPixelConfig,
-  AdsPixelEvent,
   AdAdapter,
   AdConsent,
-  AdUser,
+  AdsPixelConfig,
+  AdsPixelEvent,
+  AdsPixelInitResult,
+  UserIdentity,
+  GooglePlatformOptions,
+  MetaPlatformOptions,
+  OpenAIPlatformOptions,
 } from './types';
 
 export type AdsPixelAdapterMap = {
-  google?: AdAdapter;
-  meta?: AdAdapter;
-  openai?: AdAdapter;
+  google?: AdAdapter<GooglePlatformOptions>;
+  meta?: AdAdapter<MetaPlatformOptions>;
+  openai?: AdAdapter<OpenAIPlatformOptions>;
 };
 
 export class AdsPixel {
-  private enabled: boolean;
+  private manualConsent?: AdConsent;
 
-  private adapters: AdsPixelAdapterMap;
+  constructor(
+    private readonly adapters: AdsPixelAdapterMap,
+    private config: AdsPixelConfig = {},
+  ) {}
 
-  private consent?: AdConsent;
+  init(config: AdsPixelConfig = {}): AdsPixelInitResult {
+    const nextConfig = {
+      ...this.config,
+      ...config,
+      globalDefaults: {
+        ...this.config.globalDefaults,
+        ...config.globalDefaults,
+      },
+    };
+    const destinations = preparePlatforms(nextConfig);
+    const consent = this.manualConsent ?? nextConfig.consent;
+    this.config = nextConfig;
 
-  constructor(adapters: AdsPixelAdapterMap, config: AdsPixelConfig = {}) {
-    this.enabled = config.enabled ?? true;
-    this.adapters = adapters;
-    this.consent = config.consent;
-  }
+    this.adapters.google?.init(destinations.google, consent);
+    this.adapters.meta?.init(destinations.meta, consent);
+    this.adapters.openai?.init(destinations.openai, consent);
 
-  init(config: AdsPixelConfig = {}) {
-    this.enabled = config.enabled ?? this.enabled;
-
-    if (!this.enabled) {
-      return;
-    }
-
-    if (config.consent) {
-      this.consent = config.consent;
-    }
-
-    if (this.consent) {
-      this.setConsent(this.consent);
-    }
-
-    this.adapters.google?.init(config.google);
-    this.adapters.meta?.init(config.meta);
-    this.adapters.openai?.init(config.openai);
+    const imageTagFallbacks =
+      consent?.advertising === true
+        ? [
+            ...(this.adapters.meta?.getImageTagFallbacks?.(destinations.meta) ??
+              []),
+            ...(this.adapters.openai?.getImageTagFallbacks?.(
+              destinations.openai,
+            ) ?? []),
+          ]
+        : [];
+    return { imageTagFallbacks };
   }
 
   setConsent(consent: AdConsent) {
-    this.consent = consent;
-
-    if (!this.enabled) {
-      return;
-    }
-
+    this.manualConsent = consent;
     this.adapters.google?.setConsent(consent);
     this.adapters.meta?.setConsent(consent);
     this.adapters.openai?.setConsent(consent);
   }
 
-  identify(user: AdUser) {
-    if (!this.enabled) {
-      return;
+  setUserIdentity(user: UserIdentity) {
+    for (const platform of user.platforms ??
+      (['google', 'meta', 'openai'] as const)) {
+      this.adapters[platform]?.setUserIdentity(user);
     }
-
-    this.adapters.google?.identify(user);
-    this.adapters.meta?.identify(user);
-    this.adapters.openai?.identify(user);
   }
 
   track(event: AdsPixelEvent) {
-    if (!this.enabled) {
-      return;
-    }
-
     this.adapters.google?.track(event);
     this.adapters.meta?.track(event);
     this.adapters.openai?.track(event);

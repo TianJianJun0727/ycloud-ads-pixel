@@ -1,148 +1,86 @@
-# @ycloud/ads-ads-pixel
+# YCloud Ads Pixel SDK
 
-Unified browser Ads Pixel SDK for Google Tag, Meta Pixel, and OpenAI Ads Pixel.
+A browser SDK for Google Tag, Meta Pixel, and OpenAI Ads Pixel. Install it with `pnpm add @ycloud/ads-ads-pixel`.
 
-## Usage
+## Initialize
 
 ```ts
-import { adsPixel, installAdsPixel } from '@ycloud/ads-ads-pixel';
+import { adsPixel, type AdsPixelConfig } from '@ycloud/ads-ads-pixel';
 
-installAdsPixel(adsPixel);
+const config = {
+  globalDefaults: { enabled: true, debug: false },
+  consent: { advertising: true, analytics: true },
+  google: { trackingDestinationId: 'AW-123456789' },
+  meta: { trackingDestinationId: '123456789', imageTagFallback: false },
+  openai: [
+    { trackingDestinationId: 'agency-pixel' },
+    { trackingDestinationId: 'company-pixel', autoTrackPageView: true },
+  ],
+} satisfies AdsPixelConfig;
 
-adsPixel.init({
-  consent: {
-    advertising: false,
-    analytics: true,
-  },
-  google: {
-    measurementIds: ['AW-000000000'],
-  },
-  meta: {
-    pixelIds: ['000000000000000'],
-  },
-  openai: {
-    pixelId: 'openai-pixel-id',
-  },
+const { imageTagFallbacks } = adsPixel.init(config);
+```
+
+Each platform accepts a destination object or an array of destination objects. Use one `trackingDestinationId` per object and one entry per ID within each platform. A destination's `enabled` and `debug` override `globalDefaults`. Disabling a destination excludes it from initialization, identity updates, and event routing.
+
+| Destination field       | Default                                | Purpose                                                           |
+| ----------------------- | -------------------------------------- | ----------------------------------------------------------------- |
+| `trackingDestinationId` | Required                               | Google tag ID, Meta Pixel ID, or OpenAI Pixel ID                  |
+| `enabled`               | `true`                                 | Include this destination in SDK operations                        |
+| `debug`                 | `false`                                | Log SDK commands for this destination                             |
+| `autoTrackPageView`     | Google and Meta `true`, OpenAI `false` | Report a page view during initialization                          |
+| `imageTagFallback`      | `true`                                 | Include a Meta or OpenAI page view image fallback when applicable |
+| `platformOptions`       | Optional                               | Google `groups`, Meta `advancedMatching`, or OpenAI `user`        |
+
+The SDK builds image fallback URLs when page view tracking and the fallback are enabled for a destination and advertising consent is granted. For no-script tracking, call `init(config)` when rendering HTML on the server and render each returned `src` as an `<img>` inside `<noscript>`. Calling `init` in the browser does not insert these images.
+
+## Set user identity
+
+```ts
+adsPixel.setUserIdentity({
+  email: 'person@example.com',
+  platforms: ['google'],
 });
+```
 
-adsPixel.setConsent({ advertising: true, analytics: true });
+Call after login or once the application loads the user's identity. The common input supports `email`, `emailSha256`, `externalIdSha256`, `country`, `city`, and `postalCode`. The adapter uses only fields supported by the destination. Omit `platforms` to update all initialized, enabled platforms. OpenAI accepts hashed identifiers.
 
-adsPixel.identify({
-  google: {
-    email: 'user@example.com',
-  },
-  openai: {
-    email_sha256: '<normalized-email-sha256>',
-  },
-});
+## Track an event
 
+```ts
 adsPixel.track({
   name: 'registration_completed',
   google: {
     eventName: 'conversion',
-    properties: {
-      send_to: 'AW-000000000/example',
-    },
+    eventId: 'signup-123',
+    platformOptions: { conversionLabel: 'label' },
   },
-  meta: {
-    method: 'track',
-    eventName: 'Lead',
-  },
+  meta: { eventName: 'CompleteRegistration', eventId: 'signup-123' },
+  openai: { eventId: 'signup-123' },
+});
+
+adsPixel.track({
+  name: 'subscription_created',
+  properties: { plan_id: 'pro', amount: 1234, currency: 'USD' },
   openai: {
-    eventName: 'registration_completed',
-    payload: {
-      type: 'customer_action',
-    },
+    trackingDestinationId: 'agency-pixel',
+    eventId: 'payment-123',
   },
 });
 ```
 
-Meta Advanced Matching must be supplied during initialization through
-`meta.advancedMatching`. OpenAI identity updates accept only supported
-pre-hashed fields; raw email and external IDs must not be passed to OpenAI.
+Only the platform keys present in the event receive it. Each platform accepts an object or an array with the same fields. Omit `eventName` to use `name` and omit `trackingDestinationId` to send to all enabled, initialized destinations on that platform. Platform `properties` override shared `properties`. The adapter maps the event name, event ID, and supported values to the platform's vendor command. OpenAI amounts use integer minor currency units.
 
-Each platform field supports either one event object or an event array:
+Platform event options include Google `conversionLabel` and `destinationGroup`, and OpenAI `optOut`.
+
+## Update consent
 
 ```ts
-adsPixel.track({
-  name: 'registration_completed',
-  google: [
-    {
-      eventName: 'conversion',
-      properties: {
-        send_to: 'AW-000000000/example',
-      },
-    },
-    {
-      eventName: 'sign_up',
-      properties: {
-        method: 'email',
-      },
-    },
-  ],
-  meta: [
-    {
-      method: 'track',
-      eventName: 'Lead',
-    },
-    {
-      method: 'trackCustom',
-      eventName: 'RegistrationSource',
-      properties: {
-        source: 'register_success',
-      },
-    },
-  ],
-  openai: [
-    {
-      eventName: 'registration_completed',
-      payload: {
-        type: 'customer_action',
-      },
-    },
-    {
-      eventName: 'custom',
-      payload: {
-        type: 'custom',
-      },
-      options: {
-        custom_event_name: 'registration_source',
-      },
-    },
-  ],
-});
+adsPixel.setConsent({ advertising: false, analytics: true });
 ```
 
-## Setup
+Pass the existing authorization as `init({ consent, ... })` to apply it before platform initialization and automatic page views. Use `setConsent` to apply changes. A call made before `init` is retained and takes precedence over the initial value. `analytics` follows `advertising` when omitted. Google receives both signals. Meta and OpenAI receive the advertising signal.
 
-Install the dependencies:
+## Develop
 
-```bash
-pnpm install
-```
-
-## Get started
-
-Build the library:
-
-```bash
-pnpm run build
-```
-
-Build the library in watch mode:
-
-```bash
-pnpm run dev
-```
-
-Run tests:
-
-```bash
-pnpm run test
-```
-
-Run tests in watch mode:
-
-```bash
-pnpm run test:watch
-```
+Run `pnpm install` to install dependencies, `pnpm run build` to build the package, and `pnpm run test` to run tests. Use `pnpm run dev` or `pnpm run test:watch` for watch mode.

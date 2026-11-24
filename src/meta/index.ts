@@ -7,7 +7,6 @@ export {
   META_STANDARD_EVENT_PROPERTIES,
 } from './constants';
 export type {
-  MetaAdapterConfig,
   MetaAdvancedMatching,
   MetaContent,
   MetaCustomEventOptions,

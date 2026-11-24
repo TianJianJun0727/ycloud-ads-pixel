@@ -1,72 +1,30 @@
-import type { AdAdapterConfig, AdAdapterDebugCall } from './types';
-import type { AdsPixelBrowserWindow } from './types';
+import type {
+  AdsPixelBrowserWindow,
+  OneOrMany,
+  ResolvedDestination,
+} from './types';
 
-export class AdapterState<Config extends AdAdapterConfig> {
-  private config: Config &
-    Required<Pick<AdAdapterConfig, 'enabled' | 'defaultProperties'>>;
+export abstract class BaseAdAdapter<Options> {
+  protected destinations: readonly ResolvedDestination<Options>[] = [];
 
-  constructor(initialConfig?: Config) {
-    this.config = {
-      enabled: true,
-      defaultProperties: {},
-      ...(initialConfig || {}),
-    } as Config &
-      Required<Pick<AdAdapterConfig, 'enabled' | 'defaultProperties'>>;
+  protected readonly initializedIds = new Set<string>();
+
+  protected ownsQueueStub = false;
+
+  constructor(private readonly platform: string) {}
+
+  protected get activeDestinations() {
+    return this.destinations.filter(({ id }) => this.initializedIds.has(id));
   }
 
-  init(config?: Config) {
-    this.config = {
-      ...this.config,
-      ...(config || {}),
-    };
-  }
-
-  isEnabled() {
-    return this.config.enabled;
-  }
-
-  getDefaultProperties() {
-    return this.config.defaultProperties;
-  }
-
-  getConfig() {
-    return this.config;
-  }
-}
-
-export abstract class BaseAdAdapter<Config extends AdAdapterConfig> {
-  private platform: string;
-
-  protected state: AdapterState<Config>;
-
-  constructor(platform: string, initialConfig?: Config) {
-    this.platform = platform;
-    this.state = new AdapterState(initialConfig);
-  }
-
-  init(config?: Config) {
-    this.state.init(config);
-  }
-
-  protected logCall(command: string, args: unknown[]) {
-    const config = this.state.getConfig();
-
-    if (!config.debug) {
-      return;
+  protected logCall(
+    command: string,
+    args: unknown[],
+    debug = this.destinations.some((target) => target.debug),
+  ) {
+    if (debug) {
+      console.debug('[adsPixel]', this.platform, command, ...args);
     }
-
-    const call: AdAdapterDebugCall = {
-      platform: this.platform,
-      command,
-      args,
-    };
-
-    if (config.debugLogger) {
-      config.debugLogger(call);
-      return;
-    }
-
-    console.debug('[adsPixel]', call.platform, call.command, ...call.args);
   }
 }
 
@@ -144,15 +102,5 @@ export const loadScript = ({
   document.head.appendChild(script);
 };
 
-export const mergeProperties = (
-  defaultProperties: Record<string, unknown>,
-  eventProperties: Record<string, unknown> | undefined,
-  platformProperties: Record<string, unknown> | undefined,
-) => ({
-  ...defaultProperties,
-  ...(eventProperties || {}),
-  ...(platformProperties || {}),
-});
-
-export const toArray = <T>(value: T | T[]) =>
-  Array.isArray(value) ? value : [value];
+export const toArray = <T>(value: OneOrMany<T>): readonly T[] =>
+  Array.isArray(value) ? value : [value as T];
